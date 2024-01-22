@@ -1,0 +1,453 @@
+import requests
+import time
+import schedule
+import os
+from test import redak_axi_text, addid_redac, redak_mo, get_balance
+from red_xl import red_xl
+from send_mail import send_email
+from openpyxl import Workbook
+from dotenv import load_dotenv
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+
+
+def autorization(url, driver, username, password):
+    driver.get(url)
+    input_login = driver.find_element(By.CSS_SELECTOR, 'input[name="userID"]')
+    input_password = driver.find_element(By.CSS_SELECTOR, 'input[name="password"]')
+    btn_input = driver.find_element(By.XPATH, "//a[contains(text(), 'Войти') and @class='btn']")
+
+    input_login.send_keys(username)
+    input_password.send_keys(password)
+    btn_input.click()
+
+    return driver
+
+
+def start_order(driver):
+    order_lenses_btn = driver.find_element(By.XPATH, "//a[@title='Заказать линзы' and @id='link1']")
+    order_lenses_btn.click()
+    order_entry = driver.find_element(By.XPATH, "//a[@id='menu-ordering-touch' and contains(text(), 'Ввод заказа')]")
+    order_entry.click()
+
+    return driver
+
+
+def get_product_selection(driver):
+    select_box = driver.find_element(By.CSS_SELECTOR, 'select[name="selectedBrandCode"]')
+    product_names = select_box.find_elements(By.TAG_NAME, 'option')
+    
+    return {
+        'driver': driver,
+        'product_names': product_names[1:] 
+    }
+
+    
+
+def set_parametr_product(driver, test_quantity):
+    wait = WebDriverWait(driver, 10)
+    select_all_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[contains(text(), "Выбрать все")]')))
+    select_all_btn.click()
+    time.sleep(1)
+    #ищем окошечки для ввода количества
+    windows_for_number = driver.find_elements(By.CLASS_NAME, 'drawer-line-quantity-halo')
+    for window in windows_for_number:
+        input_number = window.find_element(By.TAG_NAME, 'input')
+        input_number.clear()
+        input_number.send_keys(str(test_quantity))
+
+    #ищем чекбокс "Выбрать все" и кликаем на него
+    checkbox_select_all = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[id="drawer-select-all-check"]')))
+    checkbox_select_all.click()
+    time.sleep(2)
+
+
+def add_to_cart(driver):
+    #ищем кнопку "Добавить в корзину" и кликаем на неё
+    add_to_cart_btn = driver.find_element(By.CSS_SELECTOR, 'a[id="add-to-cart-button-rx"]').click()
+    
+
+
+def empty_cart(driver, url):
+    driver.get(url)
+    time.sleep(2)
+    driver.find_element(By.CSS_SELECTOR, 'a[title="Удалить"]').click()
+    time.sleep(2)
+
+
+def check_style(driver, css_selector, styles_to_check:dict):
+    #css_selector = 'your_css_selector'
+    #styles_to_check = {'color': 'red', 'font-size': '16px'}
+    # Формирование JavaScript-кода для проверки стилей
+    script = f"""
+    var element = document.querySelector('{css_selector}');
+    var styles = window.getComputedStyle(element);
+    """
+
+    # Добавление условий для каждого стиля
+    for style, value in styles_to_check.items():
+        script += f"if (styles.{style} !== '{value}') return false;"
+
+    # Возвращение true, если все стили соответствуют
+    script += "return true;"
+
+    # Выполнение JavaScript-кода
+    result = driver.execute_script(script)
+
+    # Проверка результата
+    return result
+
+
+def is_element_present_by_id(driver, element_id, styles_to_check:dict):
+    try:
+        driver.find_element(By.ID, f'{element_id}')  
+        x = check_style(driver, f'#{element_id}', styles_to_check)
+        return True and x
+    except NoSuchElementException:
+        return False
+    
+
+def is_element_by_id(driver, element_id):
+    try:
+        driver.find_element(By.ID, f'{element_id}')
+        return True 
+    except NoSuchElementException:
+        return False
+
+
+
+
+def main():
+    start_time = time.time()
+    load_dotenv()
+    driver = webdriver.Chrome()
+
+    wb = Workbook()
+    ws = wb.active
+
+    ws.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
+
+    wb2 = Workbook()
+    ws2 = wb2.active
+
+    ws2.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
+
+    username = os.getenv("LOGIN")
+    password = os.getenv("PASS")
+    url = "https://www.jnjvision.com/eocs-rwd/startExternal.xo?salesOrg=0020&localeID=ru_RU"
+    url_order = "https://www.jnjvision.com/eocs-rwd/shipToSelection.xo?actionString=continueToCheckout"
+    url_cart = "https://www.jnjvision.com/eocs-rwd/viewCart.xo?formAction=clearCartWarning"
+    wait = WebDriverWait(driver, 10)
+
+    autoriz_driver = autorization(url, driver, username, password)
+    print("Авторизация прошла успешно")
+
+    addresses = {
+        0:'RU14102', 
+        1:'RU39813'}
+    
+    lens_name = {
+                0:'1-day Acuvue moist',
+                1:'1-day Acuvue moist for astigmatism',
+                2:'1-day Acuvue trueye with hydraclear',
+                3:'Acuvue 2',
+                4:'Acuvue Oasys with hydraclear plus',
+                5:'Acuvue Oasys for astigmatism with hydraclear plus',
+                6:'Acuvue Oasys 1-day with hydraluxe',
+                7:'1-day Acuvue moist multifocal',
+                8:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
+                9:'Acuvue Oasys multifocal',
+                10:'Acuvue Oasys max 1-day',
+                }
+
+    product_change = "Новый"
+    product_number = 0
+    product_end_number = 11
+    curves_number = 0
+    blister_number = 0
+    cylinder_number = 0
+    axis_number = 0
+    addidation_number = 0
+    test_quntity = 100
+
+    while True:
+        try:
+            if is_element_by_id(driver, 'cartCount'):
+                empty_cart(driver, url_cart)
+                
+            startpage_order_driver = start_order(autoriz_driver)
+            product_selection = get_product_selection(startpage_order_driver)
+
+            #кликаем на выпадающий список продукции
+            product_selection['driver'].find_element(By.CSS_SELECTOR, 'span[role="presentation"]').click()
+            product_names = product_selection['product_names']
+
+            cylinder_presence = False
+            addid_presence = False
+
+            while product_number < product_end_number:
+
+                product_names[product_number].click()
+                #выбираем комерческую поставку
+                commercial_order_btn = driver.find_element(By.CSS_SELECTOR, 'a[id="id_revenue_button"]').click()
+                #выбираем кривизну
+                
+                base_curves_btn = driver.find_element(By.CSS_SELECTOR, 'div[id="id_revenue_basecurves"]')
+                curves_btns = base_curves_btn.find_elements(By.TAG_NAME, 'a')
+
+                if curves_number < len(curves_btns):
+                    curves_btns[curves_number].click()
+                    time.sleep(2)
+                    
+                    #проверяем есть ли цилиндры и оси для выбора
+                    if is_element_present_by_id(driver, 'id_cylinders_and_axes', {'display': 'block'}):
+                        cylinder_presence = True
+                        cylinders_window = driver.find_element(By.CSS_SELECTOR, 'select[id="id_cylinder_select"]')
+                        cylinders = cylinders_window.find_elements(By.TAG_NAME, 'option')[1:]
+
+                        if cylinder_number < len(cylinders):
+                            cylinders[cylinder_number].click()
+                            time.sleep(1)
+
+                        axis_window = driver.find_element(By.CSS_SELECTOR, 'select[id="id_axis_select"]')
+                        axis = axis_window.find_elements(By.TAG_NAME, 'option')[1:]
+
+                        if axis_number < len(axis):
+                            axis[axis_number].click()
+                            time.sleep(1)
+
+
+                    #проверяем есть ли адддация 
+                    if is_element_present_by_id(driver,'id_add_powers', {'display': 'block'}):
+                        addid_presence = True
+                        addidations_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_add_power_buttons"]')
+                        addidation_btns = addidations_window.find_elements(By.TAG_NAME, 'a')
+
+                        if addidation_number < len(addidation_btns):
+                            addidation_btns[addidation_number].click()
+                            time.sleep(1)
+
+                    
+                    #проверяем есть ли блистеры для выбора
+                    if is_element_present_by_id(driver, 'id_single_uom_buttons', {'display': 'block'}):
+                        
+                        blister_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_single_uom_buttons"]')
+                        blisters = blister_window.find_elements(By.TAG_NAME, 'a')
+
+                        if blister_number < len(blisters):
+                            package_volume = blisters[blister_number].text
+                            blisters[blister_number].click()
+                            time.sleep(2)
+                            set_parametr_product(driver, test_quntity)
+                            time.sleep(1)
+                            add_to_cart(driver)
+                            time.sleep(1)
+
+                    # добавили продукт в корзину
+                    # переходим к оформлению заказа 
+                    
+                    adres = 0
+                    while adres < len(addresses):
+                        
+                        driver.get(url_order)
+                        time.sleep(2)
+                        print("начинаю цикл")
+                        print("страница с адресом")
+                        try:
+                            adress = wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]')))
+                            adress.click()
+                        except TimeoutException:
+                            print('TimeoutException - страница с адресом')
+                            driver.refresh()
+                            continue
+                        print("раз")
+
+                        try:
+                            elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
+                            elem.click()
+                        except TimeoutException:
+                            print('TimeoutException - страница после страницы с адресом')
+                            driver.refresh()
+                            continue
+                        print("два")
+
+                        time.sleep(2)
+                        try:
+                            elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
+                            elem.click()
+                        except TimeoutException:
+                            print('TimeoutException - страница после страницы с адресом 2')
+                            driver.refresh()
+                            continue
+                        print("три")
+                        time.sleep(2) 
+
+                        try:
+                            elem2 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
+                            elem2.click()
+                        except TimeoutException:
+                            print("Предварительной страницы с отсутствующими позициями не было.")
+
+                        print('отсюда собираем информацию')
+                        time.sleep(2) 
+                        products_text = driver.find_elements(By.CSS_SELECTOR, 'div[class="table-item stack"]')
+
+                        
+                        for num, text_in in enumerate(products_text):
+                            print(addresses[adres])
+                            lines = text_in.text.split('\n')
+                            curvature = lines[0].split()[-1].replace(',', '.')
+
+                            lines[0] = lens_name[product_number]
+                            lines[0] = f'{lines[0]} ({package_volume} линз)'
+
+                            if 'Ось' in lines[1]:
+                                lines[1] = redak_axi_text(lines[1], curvature, package_volume)
+                                if lines[1].endswith("+0.00"):
+                                    e = lines[1].split()
+                                    e[-1] = '0.00'
+                                    lines[1] = ' '.join(e)
+                            elif 'Аддидация' in lines[1]:
+                                lines[1] = addid_redac(lines[1], curvature)
+                            else:
+                                lines[1] = redak_mo(lines[1], curvature)
+
+
+                            if len(lines) == 2:
+                                lines.append(f"В наличии {test_quntity} или более")
+                            else:
+                                lines[2] = get_balance(lines[2])
+                            
+                            if len(lines) == 4:
+                                lines = lines[:-1]
+
+                            if adres == 0:
+                                lines.append('Шолохова')
+                                ws.append(lines)
+                            else:
+                                lines.append('Островитянова')
+                                ws2.append(lines)
+                            
+                            
+
+                            print(num, lines)
+                            print()
+
+                        adres += 1
+                        time.sleep(2)
+                        if adres == 2:
+                            break
+                        print("идем на следующий круг")
+                        driver.get(url_order)
+                    
+
+                    blister_number += 1
+
+                    if cylinder_presence:
+                        if blister_number == len(blisters):
+                            blister_number = 0
+                            axis_number += 1
+
+                        if axis_number == len(axis):
+                            axis_number = 0
+                            cylinder_number += 1
+                        
+                        if cylinder_number == len(cylinders):
+                            cylinder_number = 0
+                            curves_number += 1
+
+                        if curves_number == len(curves_btns):
+                            product_number += 1
+                            product_change = "Новый"
+                            blister_number = 0
+                            curves_number = 0
+                        else:
+                            product_change = "Старый"
+
+                    elif addid_presence:
+                        if blister_number == len(blisters):
+                            blister_number = 0
+                            addidation_number += 1
+                        if addidation_number == len(addidation_btns):
+                            addidation_number = 0
+                            curves_number += 1
+                        if curves_number == len(curves_btns):
+                            product_number += 1
+                            product_change = "Новый"
+                            blister_number = 0
+                            curves_number = 0
+                        else:
+                            product_change = "Старый"
+
+                    else:
+                        if blister_number == len(blisters):
+                            curves_number += 1
+                            blister_number = 0
+                                
+                        if curves_number == len(curves_btns):
+                            product_number += 1
+                            product_change = "Новый"
+                            blister_number = 0
+                            curves_number = 0
+                        else:
+                            product_change = "Старый"
+                        
+
+                    empty_cart(driver, url_cart)
+                    print("Очистили корзину")
+                    break
+
+            
+            print("Вышли из цикла")
+            
+            
+
+            print(f"Продукт {product_number}.{product_change}")
+            print(f"Кривизна {curves_number}")
+            print(f"Цилиндр {cylinder_number}")
+            print(f"Ось {axis_number}")
+            print(f"Блистер {blister_number}")
+            
+            
+
+            if product_number == product_end_number:
+                print("Прошлись по всем продуктам")
+                wb.save('rostov.xlsx')
+                wb2.save('moscow.xlsx')
+                break
+        except Exception as ex:
+            print(ex)
+            print("Что-то пошло не так, начну этот круг заново")
+            continue
+        
+
+    time.sleep(15)
+
+    driver.close()
+    driver.quit()
+
+    red_xl()
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Время выполнения программы: {execution_time} секунд")
+
+        
+
+
+
+
+
+if __name__ == "__main__":
+
+    schedule.every().day.at("00:56").do(main)
+    schedule.every().day.at("01:10").do(send_email, 'moscow_ostatki.xlsx', 'rostov_ostatki.xlsx')
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
