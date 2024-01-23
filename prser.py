@@ -18,9 +18,10 @@ from selenium.webdriver.support import expected_conditions as EC
 
 def autorization(url, driver, username, password):
     driver.get(url)
-    input_login = driver.find_element(By.CSS_SELECTOR, 'input[name="userID"]')
-    input_password = driver.find_element(By.CSS_SELECTOR, 'input[name="password"]')
-    btn_input = driver.find_element(By.XPATH, "//a[contains(text(), 'Войти') and @class='btn']")
+    wait = WebDriverWait(driver, 10)
+    input_login = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="userID"]')))
+    input_password = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="password"]')))
+    btn_input = wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(), 'Войти') and @class='btn']")))
 
     input_login.send_keys(username)
     input_password.send_keys(password)
@@ -29,17 +30,17 @@ def autorization(url, driver, username, password):
     return driver
 
 
-def start_order(driver):
-    order_lenses_btn = driver.find_element(By.XPATH, "//a[@title='Заказать линзы' and @id='link1']")
+def start_order(driver, wait):
+    order_lenses_btn = wait.until(EC.presence_of_element_located((By.XPATH, "//a[@title='Заказать линзы' and @id='link1']")))
     order_lenses_btn.click()
-    order_entry = driver.find_element(By.XPATH, "//a[@id='menu-ordering-touch' and contains(text(), 'Ввод заказа')]")
+    order_entry = wait.until(EC.presence_of_element_located((By.XPATH, "//a[@id='menu-ordering-touch' and contains(text(), 'Ввод заказа')]")))
     order_entry.click()
 
     return driver
 
 
-def get_product_selection(driver):
-    select_box = driver.find_element(By.CSS_SELECTOR, 'select[name="selectedBrandCode"]')
+def get_product_selection(driver, wait):
+    select_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'select[name="selectedBrandCode"]')))
     product_names = select_box.find_elements(By.TAG_NAME, 'option')
     
     return {
@@ -68,16 +69,17 @@ def set_parametr_product(driver, test_quantity):
 
 
 def add_to_cart(driver):
+    wait = WebDriverWait(driver, 10)
     #ищем кнопку "Добавить в корзину" и кликаем на неё
-    add_to_cart_btn = driver.find_element(By.CSS_SELECTOR, 'a[id="add-to-cart-button-rx"]').click()
+    add_to_cart_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[id="add-to-cart-button-rx"]')))
+    add_to_cart_btn.click()
     
 
 
-def empty_cart(driver, url):
+def empty_cart(driver, url, wait):
     driver.get(url)
-    time.sleep(2)
-    driver.find_element(By.CSS_SELECTOR, 'a[title="Удалить"]').click()
-    time.sleep(2)
+    select_all_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Удалить"]')))
+    select_all_btn.click()
 
 
 def check_style(driver, css_selector, styles_to_check:dict):
@@ -104,15 +106,16 @@ def check_style(driver, css_selector, styles_to_check:dict):
 
 
 def is_element_present_by_id(driver, element_id, styles_to_check:dict):
+    
     try:
-        driver.find_element(By.ID, f'{element_id}')  
+        driver.find_element(By.ID, f'{element_id}')
         x = check_style(driver, f'#{element_id}', styles_to_check)
         return True and x
     except NoSuchElementException:
         return False
     
 
-def is_element_by_id(driver, element_id):
+def is_element_by_id(element_id, driver):
     try:
         driver.find_element(By.ID, f'{element_id}')
         return True 
@@ -142,10 +145,11 @@ def main():
     url = "https://www.jnjvision.com/eocs-rwd/startExternal.xo?salesOrg=0020&localeID=ru_RU"
     url_order = "https://www.jnjvision.com/eocs-rwd/shipToSelection.xo?actionString=continueToCheckout"
     url_cart = "https://www.jnjvision.com/eocs-rwd/viewCart.xo?formAction=clearCartWarning"
-    wait = WebDriverWait(driver, 10)
+    
 
     autoriz_driver = autorization(url, driver, username, password)
     print("Авторизация прошла успешно")
+    wait = WebDriverWait(autoriz_driver, 10)
 
     addresses = {
         0:'RU14102', 
@@ -154,20 +158,20 @@ def main():
     lens_name = {
                 0:'1-day Acuvue moist',
                 1:'1-day Acuvue moist for astigmatism',
-                2:'1-day Acuvue trueye with hydraclear',
-                3:'Acuvue 2',
+                2:'1-day Acuvue trueye', 
+                3:'Acuvue 2', # протестить
                 4:'Acuvue Oasys with hydraclear plus',
                 5:'Acuvue Oasys for astigmatism with hydraclear plus',
                 6:'Acuvue Oasys 1-day with hydraluxe',
                 7:'1-day Acuvue moist multifocal',
-                8:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
+                8:'Acuvue Oasys 1-day with hydraluxe for astigmatism', # нет из-за лишней 30 в параметрах
                 9:'Acuvue Oasys multifocal',
                 10:'Acuvue Oasys max 1-day',
                 }
 
     product_change = "Новый"
-    product_number = 0
-    product_end_number = 11
+    product_number = 1
+    product_end_number = 2
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
@@ -177,14 +181,14 @@ def main():
 
     while True:
         try:
-            if is_element_by_id(driver, 'cartCount'):
-                empty_cart(driver, url_cart)
+            if is_element_by_id('cartCount', autoriz_driver):
+                empty_cart(driver, url_cart, wait)
                 
-            startpage_order_driver = start_order(autoriz_driver)
-            product_selection = get_product_selection(startpage_order_driver)
+            startpage_order_driver = start_order(autoriz_driver, wait)
+            product_selection = get_product_selection(startpage_order_driver, wait)
 
-            #кликаем на выпадающий список продукции
-            product_selection['driver'].find_element(By.CSS_SELECTOR, 'span[role="presentation"]').click()
+            
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[role="presentation"]'))).click()
             product_names = product_selection['product_names']
 
             cylinder_presence = False
@@ -194,15 +198,16 @@ def main():
 
                 product_names[product_number].click()
                 #выбираем комерческую поставку
-                commercial_order_btn = driver.find_element(By.CSS_SELECTOR, 'a[id="id_revenue_button"]').click()
+                commercial_order_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[id="id_revenue_button"]')))
+                commercial_order_btn.click()
                 #выбираем кривизну
                 
-                base_curves_btn = driver.find_element(By.CSS_SELECTOR, 'div[id="id_revenue_basecurves"]')
+                base_curves_btn = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[id="id_revenue_basecurves"]')))
                 curves_btns = base_curves_btn.find_elements(By.TAG_NAME, 'a')
 
                 if curves_number < len(curves_btns):
                     curves_btns[curves_number].click()
-                    time.sleep(2)
+                    time.sleep(1)
                     
                     #проверяем есть ли цилиндры и оси для выбора
                     if is_element_present_by_id(driver, 'id_cylinders_and_axes', {'display': 'block'}):
@@ -223,7 +228,7 @@ def main():
 
 
                     #проверяем есть ли адддация 
-                    if is_element_present_by_id(driver,'id_add_powers', {'display': 'block'}):
+                    if is_element_present_by_id(driver, 'id_add_powers', {'display': 'block'}):
                         addid_presence = True
                         addidations_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_add_power_buttons"]')
                         addidation_btns = addidations_window.find_elements(By.TAG_NAME, 'a')
@@ -231,7 +236,6 @@ def main():
                         if addidation_number < len(addidation_btns):
                             addidation_btns[addidation_number].click()
                             time.sleep(1)
-
                     
                     #проверяем есть ли блистеры для выбора
                     if is_element_present_by_id(driver, 'id_single_uom_buttons', {'display': 'block'}):
@@ -242,7 +246,7 @@ def main():
                         if blister_number < len(blisters):
                             package_volume = blisters[blister_number].text
                             blisters[blister_number].click()
-                            time.sleep(2)
+                            time.sleep(1)
                             set_parametr_product(driver, test_quntity)
                             time.sleep(1)
                             add_to_cart(driver)
@@ -275,8 +279,6 @@ def main():
                             driver.refresh()
                             continue
                         print("два")
-
-                        time.sleep(2)
                         try:
                             elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
                             elem.click()
@@ -285,7 +287,6 @@ def main():
                             driver.refresh()
                             continue
                         print("три")
-                        time.sleep(2) 
 
                         try:
                             elem2 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
@@ -293,9 +294,8 @@ def main():
                         except TimeoutException:
                             print("Предварительной страницы с отсутствующими позициями не было.")
 
-                        print('отсюда собираем информацию')
-                        time.sleep(2) 
-                        products_text = driver.find_elements(By.CSS_SELECTOR, 'div[class="table-item stack"]')
+                        print('отсюда собираем информацию') 
+                        products_text = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div[class="table-item stack"]')))
 
                         
                         for num, text_in in enumerate(products_text):
@@ -307,7 +307,7 @@ def main():
                             lines[0] = f'{lines[0]} ({package_volume} линз)'
 
                             if 'Ось' in lines[1]:
-                                lines[1] = redak_axi_text(lines[1], curvature, package_volume)
+                                lines[1] = redak_axi_text(lines[1], curvature, package_volume, product_number)
                                 if lines[1].endswith("+0.00"):
                                     e = lines[1].split()
                                     e[-1] = '0.00'
@@ -339,7 +339,6 @@ def main():
                             print()
 
                         adres += 1
-                        time.sleep(2)
                         if adres == 2:
                             break
                         print("идем на следующий круг")
@@ -398,7 +397,7 @@ def main():
                             product_change = "Старый"
                         
 
-                    empty_cart(driver, url_cart)
+                    empty_cart(driver, url_cart, wait)
                     print("Очистили корзину")
                     break
 
@@ -426,7 +425,7 @@ def main():
             continue
         
 
-    time.sleep(15)
+    time.sleep(5)
 
     driver.close()
     driver.quit()
@@ -445,8 +444,8 @@ def main():
 
 if __name__ == "__main__":
 
-    schedule.every().day.at("00:56").do(main)
-    schedule.every().day.at("01:10").do(send_email, 'moscow_ostatki.xlsx', 'rostov_ostatki.xlsx')
+    schedule.every().day.at("01:15").do(main)
+    schedule.every().day.at("06:00").do(send_email, 'moscow_ostatki.xlsx', 'rostov_ostatki.xlsx')
 
     while True:
         schedule.run_pending()

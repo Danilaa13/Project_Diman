@@ -132,7 +132,7 @@ def red_xl():
                 rez.append(par1[3])
                 rez.append(par1[4])
                 ws3.append(rez)
-                arr2.append(rez)
+                arr3.append(rez)
 
                 del arr1[num]
                 break
@@ -142,6 +142,7 @@ def red_xl():
     wb3.save(f'moscow_ostatki.xlsx')
 
 
+# red_xl()
 
 
 
