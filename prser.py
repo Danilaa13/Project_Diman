@@ -12,6 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 
 
 
@@ -128,7 +129,10 @@ def is_element_by_id(element_id, driver):
 def main():
     start_time = time.time()
     load_dotenv()
-    driver = webdriver.Chrome()
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+
+    driver = webdriver.Chrome(options=chrome_options)
 
     wb = Workbook()
     ws = wb.active
@@ -170,8 +174,8 @@ def main():
                 }
 
     product_change = "Новый"
-    product_number = 1
-    product_end_number = 2
+    product_number = 0
+    product_end_number = 1
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
@@ -197,9 +201,11 @@ def main():
             while product_number < product_end_number:
 
                 product_names[product_number].click()
+                print("Выбрал продукт")
                 #выбираем комерческую поставку
                 commercial_order_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[id="id_revenue_button"]')))
                 commercial_order_btn.click()
+                print("Выбрал поставку")
                 #выбираем кривизну
                 
                 base_curves_btn = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[id="id_revenue_basecurves"]')))
@@ -207,6 +213,7 @@ def main():
 
                 if curves_number < len(curves_btns):
                     curves_btns[curves_number].click()
+                    print("Выбрал кривизну")
                     time.sleep(1)
                     
                     #проверяем есть ли цилиндры и оси для выбора
@@ -217,6 +224,7 @@ def main():
 
                         if cylinder_number < len(cylinders):
                             cylinders[cylinder_number].click()
+                            print("Выбрал цилиндр")
                             time.sleep(1)
 
                         axis_window = driver.find_element(By.CSS_SELECTOR, 'select[id="id_axis_select"]')
@@ -224,6 +232,7 @@ def main():
 
                         if axis_number < len(axis):
                             axis[axis_number].click()
+                            print("Выбрал ось")
                             time.sleep(1)
 
 
@@ -235,6 +244,7 @@ def main():
 
                         if addidation_number < len(addidation_btns):
                             addidation_btns[addidation_number].click()
+                            print("Выбрал аддидацию")
                             time.sleep(1)
                     
                     #проверяем есть ли блистеры для выбора
@@ -246,10 +256,13 @@ def main():
                         if blister_number < len(blisters):
                             package_volume = blisters[blister_number].text
                             blisters[blister_number].click()
+                            print("Выбрал блистер")
                             time.sleep(1)
                             set_parametr_product(driver, test_quntity)
+                            print("Выбрал все варианты")
                             time.sleep(1)
                             add_to_cart(driver)
+                            print("Добавил в корзину")
                             time.sleep(1)
 
                     # добавили продукт в корзину
@@ -444,9 +457,11 @@ def main():
 
 if __name__ == "__main__":
 
-    schedule.every().day.at("01:15").do(main)
-    schedule.every().day.at("06:00").do(send_email, 'moscow_ostatki.xlsx', 'rostov_ostatki.xlsx')
+    main()
 
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    # schedule.every().day.at("16:15").do(main)
+    # schedule.every().day.at("06:00").do(send_email, 'moscow_ostatki.xlsx', 'rostov_ostatki.xlsx')
+
+    # while True:
+    #     schedule.run_pending()
+    #     time.sleep(1)
