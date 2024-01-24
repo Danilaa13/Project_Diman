@@ -7,12 +7,12 @@ def redak_axi_text(q, c, n, pr_num):
         new_q = q
         new_q.append(q[0])
         new_q[0] = c
-        if n == "30" and pr_num == 2:
+        if n == "30" and pr_num == 1:
              new_q.insert(5, n)
         new_q.insert(1, ', ')
         new_q.insert(4, ', ')
         new_q.insert(7, ', ')
-        if n == "30" and pr_num == 2:
+        if n == "30" and pr_num == 1:
             new_q.insert(9, ', ')
         new_q.insert(3, ' ')
         new_q.insert(7, ' ')

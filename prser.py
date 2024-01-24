@@ -13,6 +13,8 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 
@@ -129,10 +131,12 @@ def is_element_by_id(element_id, driver):
 def main():
     start_time = time.time()
     load_dotenv()
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
 
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     wb = Workbook()
     ws = wb.active
@@ -150,10 +154,13 @@ def main():
     url_order = "https://www.jnjvision.com/eocs-rwd/shipToSelection.xo?actionString=continueToCheckout"
     url_cart = "https://www.jnjvision.com/eocs-rwd/viewCart.xo?formAction=clearCartWarning"
     
+    
 
-    autoriz_driver = autorization(url, driver, username, password)
+    driver = autorization(url, driver, username, password)
     print("Авторизация прошла успешно")
-    wait = WebDriverWait(autoriz_driver, 10)
+
+    home_page = driver.current_url
+    
 
     addresses = {
         0:'RU14102', 
@@ -163,19 +170,19 @@ def main():
                 0:'1-day Acuvue moist',
                 1:'1-day Acuvue moist for astigmatism',
                 2:'1-day Acuvue trueye', 
-                3:'Acuvue 2', # протестить
+                3:'Acuvue 2', 
                 4:'Acuvue Oasys with hydraclear plus',
                 5:'Acuvue Oasys for astigmatism with hydraclear plus',
                 6:'Acuvue Oasys 1-day with hydraluxe',
                 7:'1-day Acuvue moist multifocal',
-                8:'Acuvue Oasys 1-day with hydraluxe for astigmatism', # нет из-за лишней 30 в параметрах
+                8:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
                 9:'Acuvue Oasys multifocal',
                 10:'Acuvue Oasys max 1-day',
                 }
 
     product_change = "Новый"
     product_number = 0
-    product_end_number = 1
+    # product_end_number = 5
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
@@ -184,11 +191,13 @@ def main():
     test_quntity = 100
 
     while True:
+        wait = WebDriverWait(driver, 10)
+
         try:
-            if is_element_by_id('cartCount', autoriz_driver):
+            if is_element_by_id('cartCount', driver):
                 empty_cart(driver, url_cart, wait)
                 
-            startpage_order_driver = start_order(autoriz_driver, wait)
+            startpage_order_driver = start_order(driver, wait)
             product_selection = get_product_selection(startpage_order_driver, wait)
 
             
@@ -198,7 +207,7 @@ def main():
             cylinder_presence = False
             addid_presence = False
 
-            while product_number < product_end_number:
+            while product_number < len(product_names):
 
                 product_names[product_number].click()
                 print("Выбрал продукт")
@@ -275,30 +284,15 @@ def main():
                         time.sleep(2)
                         print("начинаю цикл")
                         print("страница с адресом")
-                        try:
-                            adress = wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]')))
-                            adress.click()
-                        except TimeoutException:
-                            print('TimeoutException - страница с адресом')
-                            driver.refresh()
-                            continue
+                        
+                        adress = wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]')))
+                        adress.click()
                         print("раз")
-
-                        try:
-                            elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
-                            elem.click()
-                        except TimeoutException:
-                            print('TimeoutException - страница после страницы с адресом')
-                            driver.refresh()
-                            continue
+                        elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
+                        elem.click()
                         print("два")
-                        try:
-                            elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
-                            elem.click()
-                        except TimeoutException:
-                            print('TimeoutException - страница после страницы с адресом 2')
-                            driver.refresh()
-                            continue
+                        elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
+                        elem.click()
                         print("три")
 
                         try:
@@ -317,7 +311,10 @@ def main():
                             curvature = lines[0].split()[-1].replace(',', '.')
 
                             lines[0] = lens_name[product_number]
-                            lines[0] = f'{lines[0]} ({package_volume} линз)'
+                            if package_volume == '24':
+                                lines[0] = f'{lines[0]} ({package_volume} линзы)'
+                            else:
+                                lines[0] = f'{lines[0]} ({package_volume} линз)'
 
                             if 'Ось' in lines[1]:
                                 lines[1] = redak_axi_text(lines[1], curvature, package_volume, product_number)
@@ -332,7 +329,7 @@ def main():
 
 
                             if len(lines) == 2:
-                                lines.append(f"В наличии {test_quntity} или более")
+                                lines.append(test_quntity)
                             else:
                                 lines[2] = get_balance(lines[2])
                             
@@ -427,7 +424,7 @@ def main():
             
             
 
-            if product_number == product_end_number:
+            if product_number == len(product_names):
                 print("Прошлись по всем продуктам")
                 wb.save('rostov.xlsx')
                 wb2.save('moscow.xlsx')
@@ -435,6 +432,12 @@ def main():
         except Exception as ex:
             print(ex)
             print("Что-то пошло не так, начну этот круг заново")
+            while True:
+                driver.get(home_page)
+                time.sleep(2)
+                if driver.current_url == home_page:
+                    print("Мы на главной странице")
+                    break
             continue
         
 
@@ -459,8 +462,12 @@ if __name__ == "__main__":
 
     main()
 
+    send_email('moscow_ostatki.xlsx', 'Москва')
+    send_email('rostov_ostatki.xlsx', 'Ростов')
+
     # schedule.every().day.at("16:15").do(main)
-    # schedule.every().day.at("06:00").do(send_email, 'moscow_ostatki.xlsx', 'rostov_ostatki.xlsx')
+    # schedule.every().day.at("06:00").do(send_email, 'moscow_ostatki.xlsx')
+    # schedule.every().day.at("06:00").do(send_email, 'rostov_ostatki.xlsx')
 
     # while True:
     #     schedule.run_pending()

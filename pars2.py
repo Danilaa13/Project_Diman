@@ -4,22 +4,35 @@ from openpyxl import Workbook
 workbook_1 = openpyxl.load_workbook('products_modified_2.xlsx')
 sheet = workbook_1.active
 
-names_1 = sheet['B']
 parametrs_1 = sheet['C']
 
-for num,cell in enumerate(names_1):
-    if '1-day Acuvue moist'.lower() in str(cell.value).lower():
-        print("до", parametrs_1[num].value)
-        q = str(parametrs_1[num].value) 
-        if q != 'None':
-            q = q.split()
-            if ',' in q[1]:
-                q[1] = q[1].replace(',', '.')
-                q = ' '.join(q)
-                parametrs_1[num].value = q
-                print("после",cell.value, parametrs_1[num].value)
+for cell in parametrs_1:
+    name2 = str(cell.value)
+    
+    if "," in name2.split():
+        print(f"до {name2}")
+        ls = name2.split()
+        idx = ls.index(",")
+        name2 = " ".join(name2.split()[:idx]) + " ".join(name2.split()[idx:])
+        cell.value = name2
+        print(f"после {name2}")
+ 
             
 
 workbook_1.save('products_modified_3.xlsx')
+
+# pac_volume = 24
+
+# name2 ='8.6, CYL: -0.75 , AXIS: 10, -6.00'
+
+
+
+# if "," in name2.split():
+#     ls = name2.split()
+#     idx = ls.index(",")
+#     name2 = " ".join(name2.split()[:idx]) + " ".join(name2.split()[idx:])
+
+
+# print(name2)
 
 

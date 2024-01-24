@@ -4,7 +4,7 @@ from openpyxl import Workbook
 
 def red_xl():
     # Открываем файл
-    workbook_1 = openpyxl.load_workbook('products_modified_2.xlsx')
+    workbook_1 = openpyxl.load_workbook('products_modified_3.xlsx')
     workbook_2 =  openpyxl.load_workbook('rostov.xlsx')
     workbook_3 =  openpyxl.load_workbook('moscow.xlsx')
 
@@ -61,6 +61,7 @@ def red_xl():
         for num, par1 in enumerate(arr1):
             name = str(names_2[in2].value).lower()
             name2 = str(par1[0]).lower()
+
             if (parametrs_2[in2].value in par1) and (name == name2):
                 rez.append(par1[0])
                 rez.append(par1[1])
@@ -140,9 +141,6 @@ def red_xl():
 
 
     wb3.save(f'moscow_ostatki.xlsx')
-
-
-# red_xl()
 
 
 
