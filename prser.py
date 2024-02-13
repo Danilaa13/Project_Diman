@@ -182,7 +182,7 @@ def main():
 
     product_change = "Новый"
     product_number = 0
-    # product_end_number = 5
+    # product_end_number = 11
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
@@ -213,6 +213,7 @@ def main():
                 print("Выбрал продукт")
                 #выбираем комерческую поставку
                 commercial_order_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[id="id_revenue_button"]')))
+
                 commercial_order_btn.click()
                 print("Выбрал поставку")
                 #выбираем кривизну
@@ -227,6 +228,7 @@ def main():
                     
                     #проверяем есть ли цилиндры и оси для выбора
                     if is_element_present_by_id(driver, 'id_cylinders_and_axes', {'display': 'block'}):
+                        print("цилиндры есть")
                         cylinder_presence = True
                         cylinders_window = driver.find_element(By.CSS_SELECTOR, 'select[id="id_cylinder_select"]')
                         cylinders = cylinders_window.find_elements(By.TAG_NAME, 'option')[1:]
@@ -247,6 +249,7 @@ def main():
 
                     #проверяем есть ли адддация 
                     if is_element_present_by_id(driver, 'id_add_powers', {'display': 'block'}):
+                        print("аддидация есть")
                         addid_presence = True
                         addidations_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_add_power_buttons"]')
                         addidation_btns = addidations_window.find_elements(By.TAG_NAME, 'a')
@@ -258,7 +261,7 @@ def main():
                     
                     #проверяем есть ли блистеры для выбора
                     if is_element_present_by_id(driver, 'id_single_uom_buttons', {'display': 'block'}):
-                        
+                        print("блистеры есть")
                         blister_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_single_uom_buttons"]')
                         blisters = blister_window.find_elements(By.TAG_NAME, 'a')
 
@@ -349,11 +352,11 @@ def main():
                             print()
 
                         adres += 1
-                        if adres == 2:
+                        if adres == len(addresses):
                             break
-                        print("идем на следующий круг")
-                        driver.get(url_order)
-                    
+                        else:
+                            print("идем на следующий круг")
+                            driver.get(url_order)
 
                     blister_number += 1
 
@@ -433,6 +436,7 @@ def main():
             print(ex)
             print("Что-то пошло не так, начну этот круг заново")
             while True:
+                driver.refresh()
                 driver.get(home_page)
                 time.sleep(2)
                 if driver.current_url == home_page:
@@ -448,6 +452,9 @@ def main():
 
     red_xl()
 
+    send_email('moscow_ostatki.xlsx', 'Москва')
+    send_email('rostov_ostatki.xlsx', 'Ростов')
+
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Время выполнения программы: {execution_time} секунд")
@@ -462,13 +469,8 @@ if __name__ == "__main__":
 
     main()
 
-    send_email('moscow_ostatki.xlsx', 'Москва')
-    send_email('rostov_ostatki.xlsx', 'Ростов')
+    schedule.every(4).hours.do(main)
 
-    # schedule.every().day.at("16:15").do(main)
-    # schedule.every().day.at("06:00").do(send_email, 'moscow_ostatki.xlsx')
-    # schedule.every().day.at("06:00").do(send_email, 'rostov_ostatki.xlsx')
-
-    # while True:
-    #     schedule.run_pending()
-    #     time.sleep(1)
+    while True:
+         schedule.run_pending()
+         time.sleep(1)
