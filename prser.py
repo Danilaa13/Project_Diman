@@ -288,14 +288,11 @@ def main():
                         print("начинаю цикл")
                         print("страница с адресом")
                         
-                        adress = wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]')))
-                        adress.click()
+                        wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]'))).click()
                         print("раз")
-                        elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
-                        elem.click()
+                        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
                         print("два")
-                        elem = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
-                        elem.click()
+                        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
                         print("три")
 
                         try:
@@ -435,13 +432,20 @@ def main():
         except Exception as ex:
             print(ex)
             print("Что-то пошло не так, начну этот круг заново")
+
+            driver.close()
+            driver.quit()
+
+            time.sleep(1)
+
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+            driver = autorization(url, driver, username, password)
+
             while True:
-                driver.refresh()
-                driver.get(home_page)
-                time.sleep(2)
                 if driver.current_url == home_page:
                     print("Мы на главной странице")
                     break
+                time.sleep(1)
             continue
         
 
