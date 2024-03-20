@@ -207,7 +207,7 @@ def main():
             cylinder_presence = False
             addid_presence = False
 
-            while product_number < len(product_names):
+            while product_number < len(lens_name):
 
                 product_names[product_number].click()
                 print("Выбрал продукт")
@@ -424,7 +424,7 @@ def main():
             
             
 
-            if product_number == len(product_names):
+            if product_number == len(lens_name):
                 print("Прошлись по всем продуктам")
                 wb.save('rostov.xlsx')
                 wb2.save('moscow.xlsx')
