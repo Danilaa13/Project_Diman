@@ -178,6 +178,7 @@ def main():
                 8:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
                 9:'Acuvue Oasys multifocal',
                 10:'Acuvue Oasys max 1-day',
+                11:'Acuvue Oasys Max 1-Day Multifocal',
                 }
 
     product_change = "Новый"
@@ -207,7 +208,7 @@ def main():
             cylinder_presence = False
             addid_presence = False
 
-            while product_number < len(lens_name):
+            while product_number < len(product_names):
 
                 product_names[product_number].click()
                 print("Выбрал продукт")
@@ -424,7 +425,7 @@ def main():
             
             
 
-            if product_number == len(lens_name):
+            if product_number == len(product_names):
                 print("Прошлись по всем продуктам")
                 wb.save('rostov.xlsx')
                 wb2.save('moscow.xlsx')
