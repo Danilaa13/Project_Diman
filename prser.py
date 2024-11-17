@@ -15,7 +15,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-
+from check_oasys import chek_oasys
+from check_hydraluxe import chek_hydraluxe
 
 
 
@@ -183,7 +184,7 @@ def main():
 
     product_change = "Новый"
     product_number = 0
-    # product_end_number = 11
+    # product_end_number = 5
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
@@ -457,6 +458,12 @@ def main():
 
     red_xl()
 
+    chek_oasys('moscow_ostatki.xlsx')
+    chek_oasys('rostov_ostatki.xlsx')
+
+    chek_hydraluxe('moscow_ostatki.xlsx')
+    chek_hydraluxe('rostov_ostatki.xlsx')
+
     send_email('moscow_ostatki.xlsx', 'Москва')
     send_email('rostov_ostatki.xlsx', 'Ростов')
 
@@ -468,8 +475,6 @@ def main():
 
 
 
-
-
 if __name__ == "__main__":
 
     main()
@@ -477,5 +482,5 @@ if __name__ == "__main__":
     schedule.every(4).hours.do(main)
 
     while True:
-         schedule.run_pending()
-         time.sleep(1)
+        schedule.run_pending()
+        time.sleep(1)
