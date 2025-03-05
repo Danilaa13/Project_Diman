@@ -162,7 +162,7 @@ def main():
     options.add_argument("--disable-software-rasterizer")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     #service=Service(ChromeDriverManager().install()),options=options
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
 
@@ -509,7 +509,7 @@ def main():
             while True:
                 good_avtoriz = 0
                 try:
-                    driver = webdriver.Chrome(options=options)
+                    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
                     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
                     driver = autorization(url, driver, username, password)
                     good_avtoriz += 1
