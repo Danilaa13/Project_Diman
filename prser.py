@@ -16,20 +16,42 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from check_oasys import chek_oasys
+import undetected_chromedriver as uc
 from check_hydraluxe import chek_hydraluxe
 
 
 
 def autorization(url, driver, username, password):
     driver.get(url)
+    time.sleep(2)
     wait = WebDriverWait(driver, 10)
-    input_login = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="userID"]')))
-    input_password = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="password"]')))
-    btn_input = wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(), 'Войти') and @class='btn']")))
+    while True:
+        input_login = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="userID"]')))
+        input_password = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="password"]')))
+        btn_input = wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(), 'Войти') and @class='btn']")))
 
-    input_login.send_keys(username)
-    input_password.send_keys(password)
-    btn_input.click()
+        input_login.send_keys(username)
+        time.sleep(1)
+
+        if input_login.get_attribute("value") == username:
+            print("Ввел логин")
+
+            input_password.send_keys(password)
+
+            if input_password.get_attribute("value") == password:
+                print("Ввел пароль")
+            else:
+                driver.refresh()
+                time.sleep(2)
+                continue
+        else:
+            driver.refresh()
+            time.sleep(2)
+            continue
+        
+        btn_input.click()
+        print('нажал на кнопку входа')
+        break
 
     return driver
 
@@ -136,8 +158,13 @@ def main():
     options.add_argument("--headless")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    #service=Service(ChromeDriverManager().install()),options=options
+    driver = webdriver.Chrome(options=options)
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     wb = Workbook()
     ws = wb.active
@@ -158,6 +185,7 @@ def main():
     
 
     driver = autorization(url, driver, username, password)
+    time.sleep(2)
     print("Авторизация прошла успешно")
 
     home_page = driver.current_url
@@ -170,16 +198,15 @@ def main():
     lens_name = {
                 0:'1-day Acuvue moist',
                 1:'1-day Acuvue moist for astigmatism',
-                2:'1-day Acuvue trueye', 
-                3:'Acuvue 2', 
-                4:'Acuvue Oasys with hydraclear plus',
-                5:'Acuvue Oasys for astigmatism with hydraclear plus',
-                6:'Acuvue Oasys 1-day with hydraluxe',
-                7:'1-day Acuvue moist multifocal',
-                8:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
-                9:'Acuvue Oasys multifocal',
-                10:'Acuvue Oasys max 1-day',
-                11:'Acuvue Oasys Max 1-Day Multifocal',
+                2:'Acuvue 2', 
+                3:'Acuvue Oasys with hydraclear plus',
+                4:'Acuvue Oasys for astigmatism with hydraclear plus',
+                5:'Acuvue Oasys 1-day with hydraluxe',
+                6:'1-day Acuvue moist multifocal',
+                7:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
+                8:'Acuvue Oasys multifocal',
+                9:'Acuvue Oasys max 1-day',
+                10:'Acuvue Oasys Max 1-Day Multifocal',
                 }
 
     product_change = "Новый"
@@ -208,6 +235,7 @@ def main():
 
             cylinder_presence = False
             addid_presence = False
+            count_exept_order = 0
 
             while product_number < len(product_names):
 
@@ -283,19 +311,46 @@ def main():
                     # переходим к оформлению заказа 
                     
                     adres = 0
+                    
                     while adres < len(addresses):
                         
                         driver.get(url_order)
+                        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
                         time.sleep(2)
+                        print(driver.page_source)
+                        print(driver.execute_script("return document.readyState"))
+                        print(driver.execute_script("return navigator.webdriver"))
+
                         print("начинаю цикл")
                         print("страница с адресом")
+
+                        if count_exept_order == 3:
+                            print("Не смог пройти процесс оформлениязаказа")
+                            break
                         
-                        wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]'))).click()
-                        print("раз")
-                        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
-                        print("два")
-                        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
-                        print("три")
+                        try:
+                            wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]'))).click()
+                            print("выбрал адрес")
+                        except Exception as ex:
+                            print(ex)
+                            count_exept_order+=1
+                            continue
+                        
+                        try:
+                            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
+                            print("нажал кнопку продолжить")
+                        except Exception as ex:
+                            print(ex)
+                            count_exept_order+=1
+                            continue
+
+                        try:
+                            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
+                            print("еще раз продолжить")
+                        except Exception as ex:
+                            print(ex)
+                            count_exept_order+=1
+                            continue
 
                         try:
                             elem2 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
@@ -304,8 +359,12 @@ def main():
                             print("Предварительной страницы с отсутствующими позициями не было.")
 
                         print('отсюда собираем информацию') 
-                        products_text = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div[class="table-item stack"]')))
-
+                        try:
+                            products_text = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div[class="table-item stack"]')))
+                        except TimeoutException:
+                            print("Нет информации")
+                            time.sleep(20)
+                            continue
                         
                         for num, text_in in enumerate(products_text):
                             print(addresses[adres])
@@ -356,6 +415,9 @@ def main():
                         else:
                             print("идем на следующий круг")
                             driver.get(url_order)
+
+                    if count_exept_order == 3:
+                        raise ValueError('Столкнулись с непрогрузом страницы. Делаем перезагрузку.')
 
                     blister_number += 1
 
@@ -436,12 +498,34 @@ def main():
             print("Что-то пошло не так, начну этот круг заново")
 
             driver.close()
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                pass
 
             time.sleep(1)
+            #service=Service(ChromeDriverManager().install()),options=options
 
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-            driver = autorization(url, driver, username, password)
+            while True:
+                good_avtoriz = 0
+                try:
+                    driver = webdriver.Chrome(options=options)
+                    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+                    driver = autorization(url, driver, username, password)
+                    good_avtoriz += 1
+                except Exception as ex:
+                    print(ex)
+                    driver.close()
+                    try:
+                        driver.quit()
+                    except:
+                        pass
+                    time.sleep(20)
+                    continue
+
+                if good_avtoriz:
+                    break
+
 
             while True:
                 if driver.current_url == home_page:
@@ -477,10 +561,6 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
-
-    schedule.every(4).hours.do(main)
-
     while True:
-        schedule.run_pending()
-        time.sleep(1)
+        main()
+        time.sleep(320)

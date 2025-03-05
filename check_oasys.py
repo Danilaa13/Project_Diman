@@ -88,4 +88,3 @@ def chek_oasys(file_path: str):
     # Сохраняем изменения
     workbook.save(file_path)
     print(f"Данные успешно записаны в интервал строк {start_row}-{end_row} файла {file_path}")
- 
