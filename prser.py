@@ -176,6 +176,11 @@ def main():
 
     ws2.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
+    wb3 = Workbook()
+    ws3 = wb3.active
+
+    ws3.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
+
     username = os.getenv("LOGIN")
     password = os.getenv("PASS")
     url = "https://www.jnjvision.com/eocs-rwd/startExternal.xo?salesOrg=0020&localeID=ru_RU"
@@ -192,8 +197,9 @@ def main():
     
 
     addresses = {
-        0:'RU14102', 
-        1:'RU39813'}
+        0:'RU14102', #Москва
+        1:'RU39813', #Ростов
+        2:'RU51390'} #Казань
     
     lens_name = {
                 0:'1-day Acuvue moist',
@@ -211,13 +217,14 @@ def main():
 
     product_change = "Новый"
     product_number = 0
-    # product_end_number = 5
+    product_end_number = 1
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
     axis_number = 0
     addidation_number = 0
     test_quntity = 100
+    num_miopii = 9
 
     while True:
         wait = WebDriverWait(driver, 10)
@@ -232,6 +239,9 @@ def main():
             
             wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[role="presentation"]'))).click()
             product_names = product_selection['product_names']
+
+            #пока удалим наименование миопии, будем их пропускать
+            del product_names[num_miopii]
 
             cylinder_presence = False
             addid_presence = False
@@ -400,9 +410,12 @@ def main():
                             if adres == 0:
                                 lines.append('Шолохова')
                                 ws.append(lines)
-                            else:
+                            elif adres == 1:
                                 lines.append('Островитянова')
                                 ws2.append(lines)
+                            elif adres == 2:
+                                lines.append('Горьковское Шоссе')
+                                ws3.append(lines)
                             
                             
 
@@ -492,6 +505,7 @@ def main():
                 print("Прошлись по всем продуктам")
                 wb.save('rostov.xlsx')
                 wb2.save('moscow.xlsx')
+                wb3.save('kazan.xlsx')
                 break
         except Exception as ex:
             print(ex)
@@ -544,12 +558,16 @@ def main():
 
     chek_oasys('moscow_ostatki.xlsx')
     chek_oasys('rostov_ostatki.xlsx')
+    chek_oasys('kazan_ostatki.xlsx')
 
+    
     chek_hydraluxe('moscow_ostatki.xlsx')
     chek_hydraluxe('rostov_ostatki.xlsx')
+    chek_hydraluxe('kazan_ostatki.xlsx')
 
     send_email('moscow_ostatki.xlsx', 'Москва')
     send_email('rostov_ostatki.xlsx', 'Ростов')
+    send_email('kazan_ostatki.xlsx', 'Казань')
 
     end_time = time.time()
     execution_time = end_time - start_time

@@ -27,6 +27,9 @@ def chek_oasys(file_path: str):
             arr_oasys.append(row)
             arr_num_lines.append(i+1)
 
+    if len(arr_num_lines) == 0:
+        return True
+
     start_row = arr_num_lines[0]
     end_row = arr_num_lines[-1]
 

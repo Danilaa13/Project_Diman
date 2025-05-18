@@ -27,7 +27,6 @@ def chek_hydraluxe(file_path: str):
                 hydra_90_arr.append(row)
                 arr_num_lines_ostatok.append(i+1)
 
-
     adres = hydra_30_arr[0][3]
     arr_num_lines = []
 
