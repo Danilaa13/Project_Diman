@@ -1,6 +1,5 @@
-import requests
+
 import time
-import schedule
 import os
 from test import redak_axi_text, addid_redac, redak_mo, get_balance
 from red_xl import red_xl
@@ -16,7 +15,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from check_oasys import chek_oasys
-import undetected_chromedriver as uc
 from check_hydraluxe import chek_hydraluxe
 
 
