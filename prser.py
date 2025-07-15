@@ -197,7 +197,7 @@ def main():
     addresses = {
         0:'RU14102', #Москва
         1:'RU39813', #Ростов
-        2:'RU51390'} #Казань
+        2:'RU51704'} #Казань
     
     lens_name = {
                 0:'1-day Acuvue moist',
@@ -325,7 +325,7 @@ def main():
                         driver.get(url_order)
                         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
                         time.sleep(2)
-                        print(driver.page_source)
+                       
                         print(driver.execute_script("return document.readyState"))
                         print(driver.execute_script("return navigator.webdriver"))
 
@@ -412,7 +412,7 @@ def main():
                                 lines.append('Островитянова')
                                 ws2.append(lines)
                             elif adres == 2:
-                                lines.append('Горьковское Шоссе')
+                                lines.append('ул Центральная, д 2')
                                 ws3.append(lines)
                             
                             
