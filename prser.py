@@ -164,20 +164,35 @@ def main():
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
 
-    wb = Workbook()
+    wb = Workbook() #Москва
     ws = wb.active
 
     ws.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb2 = Workbook()
+    wb2 = Workbook() #Ростов
     ws2 = wb2.active
 
     ws2.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb3 = Workbook()
+    wb3 = Workbook() #Казань
     ws3 = wb3.active
 
     ws3.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
+
+    wb4 = Workbook() #Казань
+    ws4 = wb4.active
+
+    ws4.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
+
+    wb5 = Workbook() #Казань
+    ws5 = wb5.active
+
+    ws5.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
+
+    wb6 = Workbook() #Казань
+    ws6 = wb6.active
+
+    ws6.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
     username = os.getenv("LOGIN")
     password = os.getenv("PASS")
@@ -197,7 +212,12 @@ def main():
     addresses = {
         0:'RU14102', #Москва
         1:'RU39813', #Ростов
-        2:'RU51704'} #Казань
+        2:'RU51798', #Казань
+        3:'RU51799', #СПБ
+        4:'RU51797', #Новосибирск
+        5:'RU51814', #Екатеринбург
+        
+        } 
     
     lens_name = {
                 0:'1-day Acuvue moist',
@@ -405,15 +425,24 @@ def main():
                             if len(lines) == 4:
                                 lines = lines[:-1]
 
-                            if adres == 0:
+                            if adres == 0: #Москва
                                 lines.append('Шолохова')
                                 ws.append(lines)
-                            elif adres == 1:
+                            elif adres == 1: #Ростов
                                 lines.append('Островитянова')
                                 ws2.append(lines)
-                            elif adres == 2:
-                                lines.append('ул Центральная, д 2')
+                            elif adres == 2: #Казань
+                                lines.append('ул Восстания')
                                 ws3.append(lines)
+                            elif adres == 3: #СПБ
+                                lines.append('пр-кт Обуховской Обороны')
+                                ws4.append(lines)
+                            elif adres == 4: #Новосибирск
+                                lines.append('ул Гоголя')
+                                ws5.append(lines)
+                            elif adres == 5: #Екатеринбург
+                                lines.append('ул Норильская')
+                                ws6.append(lines)
                             
                             
 
@@ -504,6 +533,9 @@ def main():
                 wb.save('rostov.xlsx')
                 wb2.save('moscow.xlsx')
                 wb3.save('kazan.xlsx')
+                wb4.save('spb.xlsx')
+                wb5.save('novosib.xlsx')
+                wb6.save('ekb.xlsx')
                 break
         except Exception as ex:
             print(ex)
@@ -552,20 +584,34 @@ def main():
     driver.close()
     driver.quit()
 
-    red_xl()
+    red_xl('rostov.xlsx')
+    red_xl('moscow.xlsx')
+    red_xl('kazan.xlsx')
+    red_xl('spb.xlsx')
+    red_xl('novosib.xlsx')
+    red_xl('ekb.xlsx')
 
     chek_oasys('moscow_ostatki.xlsx')
     chek_oasys('rostov_ostatki.xlsx')
     chek_oasys('kazan_ostatki.xlsx')
+    chek_oasys('spb_ostatki.xlsx')
+    chek_oasys('novosib_ostatki.xlsx')
+    chek_oasys('ekb_ostatki.xlsx')
 
     
     chek_hydraluxe('moscow_ostatki.xlsx')
     chek_hydraluxe('rostov_ostatki.xlsx')
     chek_hydraluxe('kazan_ostatki.xlsx')
+    chek_hydraluxe('spb_ostatki.xlsx')
+    chek_hydraluxe('novosib_ostatki.xlsx')
+    chek_hydraluxe('ekb_ostatki.xlsx')
 
     send_email('moscow_ostatki.xlsx', 'Москва')
     send_email('rostov_ostatki.xlsx', 'Ростов')
     send_email('kazan_ostatki.xlsx', 'Казань')
+    send_email('spb_ostatki.xlsx', 'Питер')
+    send_email('novosib_ostatki.xlsx', 'Новосибирск')
+    send_email('ekb_ostatki.xlsx', 'Екатеринбург')
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -579,4 +625,4 @@ if __name__ == "__main__":
 
     while True:
         main()
-        time.sleep(320)
+        time.sleep(30)
