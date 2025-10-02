@@ -16,6 +16,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from check_oasys import chek_oasys
 from check_hydraluxe import chek_hydraluxe
+from get_rastvor import add_rastvor
 
 
 
@@ -228,8 +229,8 @@ def main():
                 5:'Acuvue Oasys 1-day with hydraluxe',
                 6:'1-day Acuvue moist multifocal',
                 7:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
-                8:'Acuvue Oasys multifocal',
-                9:'Acuvue Oasys max 1-day',
+                8:'Acuvue Oasys max 1-day',
+                9:'Acuvue Oasys multifocal',
                 10:'Acuvue Oasys Max 1-Day Multifocal',
                 }
 
@@ -242,7 +243,7 @@ def main():
     axis_number = 0
     addidation_number = 0
     test_quntity = 100
-    num_miopii = 9
+    num_miopii = 8
 
     while True:
         wait = WebDriverWait(driver, 10)
@@ -605,6 +606,15 @@ def main():
     chek_hydraluxe('spb_ostatki.xlsx')
     chek_hydraluxe('novosib_ostatki.xlsx')
     chek_hydraluxe('ekb_ostatki.xlsx')
+
+
+    add_rastvor('moscow_ostatki.xlsx')
+    add_rastvor('rostov_ostatki.xlsx')
+    add_rastvor('kazan_ostatki.xlsx')
+    add_rastvor('spb_ostatki.xlsx')
+    add_rastvor('novosib_ostatki.xlsx')
+    add_rastvor('ekb_ostatki.xlsx')
+
 
     send_email('moscow_ostatki.xlsx', 'Москва')
     send_email('rostov_ostatki.xlsx', 'Ростов')
