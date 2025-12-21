@@ -268,10 +268,49 @@ def main():
         browser = p.chromium.launch(
             headless=True,  # Видимый браузер
             args=[
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--disable-software-rasterizer'
+                # === КРИТИЧЕСКИ ВАЖНЫЕ ДЛЯ LINUX ===
+                '--no-sandbox',                    # Обязательно для контейнеров/серверов
+                '--disable-dev-shm-usage',         # Решает 90% проблем с памятью на Linux
+                '--disable-gpu',                   # На сервере нет GPU
+                
+                # === Для стабильности и памяти ===
+                '--disable-software-rasterizer',
+                '--disable-accelerated-2d-canvas',
+                '--disable-accelerated-video-decode',
+                '--disable-accelerated-video-encode',
+                
+                # === Для обхода блокировок ===
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--disable-web-security',          # Осторожно: только для тестов!
+                '--disable-site-isolation-trials',
+                
+                # === Оптимизация производительности ===
+                '--single-process',                # Экономит память (но менее стабильно)
+                '--disable-setuid-sandbox',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-extensions',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--no-pings',
+                
+                # === Для стабильности сети ===
+                '--disable-domain-reliability',
+                '--disable-features=AudioServiceOutOfProcess',
+                '--disable-client-side-phishing-detection',
+                '--disable-component-update',
+                
+                # === Размер окна (важно даже для headless) ===
+                '--window-size=1920,1080',
+                '--start-maximized',
+                
+                # === Язык и локаль (чтобы сайт думал что вы в РФ) ===
+                '--lang=ru-RU',
+                '--accept-lang=ru-RU,ru;q=0.9',
             ]
         )
         
@@ -841,6 +880,7 @@ def main():
                     func_name = last_call.name
                     
                     print(f"Ошибка в файле {filename}, строка {line_no}, функция {func_name}: {ex}")
+                    count_except += 1
                 else:
                     print(f"Ошибка: {ex}")
                     print("Что-то пошло не так, начну этот круг заново")
