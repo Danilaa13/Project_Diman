@@ -327,9 +327,14 @@ def main():
                 cylinder_presence = False
                 addid_presence = False
                 count_exept_order = 0
+
+                exept_count = 0
                 
                 
                 while product_number < len(product_elements):
+                    if exept_count == 3:
+                        break
+
                     # Сравнить с нужным адресом URL
                     current_url = page.url
                     print(f"Текущий URL: {current_url}")
@@ -367,7 +372,7 @@ def main():
                             time.sleep(2)
                         except Exception as e2:
                             print(f"Альтернативный способ тоже не сработал: {e2}")
-                            product_number += 1
+                            exept_count += 1
                             continue
                     
                     # Проверяем, активировалась ли кнопка коммерческой поставки
@@ -387,7 +392,7 @@ def main():
                             continue
                     except Exception as e:
                         print(f"Ошибка выбора поставки: {e}")
-                        product_number += 1
+                        exept_count += 1
                         continue
                     
                     # Выбираем кривизну
@@ -413,7 +418,7 @@ def main():
                             continue
                     except Exception as e:
                         print(f"Ошибка выбора кривизны: {e}")
-                        product_number += 1
+                        exept_count += 1
                         continue
                     
                     # Проверяем есть ли цилиндры и оси
@@ -800,6 +805,9 @@ def main():
                         addidation_number = 0
                     else:
                         product_change = "Старый"
+
+                if exept_count == 3:
+                    raise ValueError('Ошибка при выборе параметров. Скорее всего вылетело.')
                     
                 print(f"Продукт {product_number}.{product_change}")
                 print(f"Кривизна {curves_number}")
