@@ -122,7 +122,7 @@ def empty_cart_safe(page, url_cart):
     # 3. Пытаемся найти и нажать кнопку удаления (если есть)
     try:
         # Даем странице время на полную загрузку динамического контента
-        page.wait_for_load_state('networkidle', timeout=5000)
+        page.wait_for_load_state('networkidle', timeout=2000)
         
         delete_btn = page.wait_for_selector('a[title="Удалить"]', timeout=3000)
         if delete_btn.is_visible():
@@ -327,6 +327,8 @@ def main():
         
         home_page = page.url
         
+        if is_element_by_id(page, 'cartCount'):
+            empty_cart_safe(page, url_cart)
         
         while True:
             current_url = page.url
@@ -342,11 +344,15 @@ def main():
                 print("Авторизация прошла успешно")
 
             # Проверяем и очищаем корзину если нужно
-            if is_element_by_id(page, 'cartCount'):
-                empty_cart_safe(page, url_cart)
+            
             try:
                 # Переходим на страницу продуктов
-                page.goto(url_prod)
+                try:
+                    response = page.goto(url_prod, timeout=120000)  # Таймаут 120 секунд (2 минуты)
+                    print(f"Страница загрузилась, статус: {response.ok}")
+                except Exception as e:
+                    print(f"Критическая ошибка при загрузке: {e}")
+
                 time.sleep(1)
                 print("Мы на странице оформления заказа")
                 
@@ -815,8 +821,19 @@ def main():
                                             product_change = "Старый"
                                     
                                     # Очищаем корзину
-                                    empty_cart_safe(page, url_cart)
-                                    print("Очистили корзину")
+
+                                    print("Итерация завершена. Сбрасываю состояние браузера...")
+                                    # 1. Очищаем куки и кэш для этого домена
+                                    context.clear_cookies()
+                                    # 2. Перезагружаем страницу "в лоб", чтобы сбросить весь JS-контекст
+                                    page.reload(wait_until="networkidle")
+                                    # 3. Или делаем навигацию на "нейтральную" страницу сайта
+                                    page.goto("https://www.jnjvision.com/eocs-rwd/startExternal.xo", timeout=60000)
+                                    print("Состояние сброшено.")
+
+                                    if is_element_by_id(page, 'cartCount'):
+                                        empty_cart_safe(page, url_cart)
+                                        print("Очистили корзину")
                                     break
                                 else:
                                     print(f"Блистер {blister_number} не найден")
