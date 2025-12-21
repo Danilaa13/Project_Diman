@@ -1,6 +1,8 @@
 import time
 import os
 import traceback
+import requests
+import random
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from test import redak_axi_text, addid_redac, redak_mo, get_balance
 from red_xl import red_xl
@@ -181,6 +183,62 @@ def is_element_by_id(page, element_id):
         return element.is_visible()
     except:
         return False
+    
+
+def create_browser_with_settings(p):
+    """Создает браузер со всеми настройками для сервера"""
+    return p.chromium.launch(
+            headless=True,  # Видимый браузер
+            args=[
+                # === КРИТИЧЕСКИ ВАЖНЫЕ ДЛЯ LINUX ===
+                '--no-sandbox',                    # Обязательно для контейнеров/серверов
+                '--disable-dev-shm-usage',         # Решает 90% проблем с памятью на Linux
+                '--disable-gpu',                   # На сервере нет GPU
+                
+                # === Для стабильности и памяти ===
+                '--disable-software-rasterizer',
+                '--disable-accelerated-2d-canvas',
+                '--disable-accelerated-video-decode',
+                '--disable-accelerated-video-encode',
+                
+                # === Для обхода блокировок ===
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--disable-web-security',          # Осторожно: только для тестов!
+                '--disable-site-isolation-trials',
+                
+                # === Оптимизация производительности ===
+                '--single-process',                # Экономит память (но менее стабильно)
+                '--disable-setuid-sandbox',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-extensions',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--no-pings',
+                
+                # === Для стабильности сети ===
+                '--disable-domain-reliability',
+                '--disable-features=AudioServiceOutOfProcess',
+                '--disable-client-side-phishing-detection',
+                '--disable-component-update',
+                
+                # === Размер окна (важно даже для headless) ===
+                '--window-size=1920,1080',
+                '--start-maximized',
+                
+                # === Язык и локаль (чтобы сайт думал что вы в РФ) ===
+                '--lang=ru-RU',
+                '--accept-lang=ru-RU,ru;q=0.9',
+
+                # f"--disable-extensions-except=proxi_extension",
+                # f"--load-extension=proxi_extension"
+            ]
+        )
+
 
 
 def main():
@@ -265,58 +323,38 @@ def main():
     # Запускаем Playwright
     with sync_playwright() as p:
         # Запускаем браузер в видимом режиме
-        browser = p.chromium.launch(
-            headless=True,  # Видимый браузер
-            args=[
-                # === КРИТИЧЕСКИ ВАЖНЫЕ ДЛЯ LINUX ===
-                '--no-sandbox',                    # Обязательно для контейнеров/серверов
-                '--disable-dev-shm-usage',         # Решает 90% проблем с памятью на Linux
-                '--disable-gpu',                   # На сервере нет GPU
-                
-                # === Для стабильности и памяти ===
-                '--disable-software-rasterizer',
-                '--disable-accelerated-2d-canvas',
-                '--disable-accelerated-video-decode',
-                '--disable-accelerated-video-encode',
-                
-                # === Для обхода блокировок ===
-                '--disable-blink-features=AutomationControlled',
-                '--disable-features=IsolateOrigins,site-per-process',
-                '--disable-web-security',          # Осторожно: только для тестов!
-                '--disable-site-isolation-trials',
-                
-                # === Оптимизация производительности ===
-                '--single-process',                # Экономит память (но менее стабильно)
-                '--disable-setuid-sandbox',
-                '--disable-background-networking',
-                '--disable-default-apps',
-                '--disable-extensions',
-                '--disable-sync',
-                '--disable-translate',
-                '--metrics-recording-only',
-                '--no-first-run',
-                '--no-default-browser-check',
-                '--no-pings',
-                
-                # === Для стабильности сети ===
-                '--disable-domain-reliability',
-                '--disable-features=AudioServiceOutOfProcess',
-                '--disable-client-side-phishing-detection',
-                '--disable-component-update',
-                
-                # === Размер окна (важно даже для headless) ===
-                '--window-size=1920,1080',
-                '--start-maximized',
-                
-                # === Язык и локаль (чтобы сайт думал что вы в РФ) ===
-                '--lang=ru-RU',
-                '--accept-lang=ru-RU,ru;q=0.9',
-            ]
-        )
+        browser = create_browser_with_settings(p)
+
+        USER_AGENTS = [
+            # Windows + Chrome (самые популярные)
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            
+            # macOS + Chrome
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            
+            # Windows + Firefox
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/120.0',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
+            
+            # macOS + Firefox
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/120.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/119.0',
+            
+            # Linux + Chrome
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+            
+            # Linux + Firefox
+            'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/120.0',
+            'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0',
+    ]
         
         # Создаем контекст и страницу
         context = browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+            user_agent=random.choice(USER_AGENTS)
         )
         page = context.new_page()
         
@@ -822,15 +860,6 @@ def main():
                                     
                                     # Очищаем корзину
 
-                                    print("Итерация завершена. Сбрасываю состояние браузера...")
-                                    # 1. Очищаем куки и кэш для этого домена
-                                    context.clear_cookies()
-                                    # 2. Перезагружаем страницу "в лоб", чтобы сбросить весь JS-контекст
-                                    page.reload(wait_until="networkidle")
-                                    # 3. Или делаем навигацию на "нейтральную" страницу сайта
-                                    page.goto("https://www.jnjvision.com/eocs-rwd/startExternal.xo", timeout=60000)
-                                    print("Состояние сброшено.")
-
                                     if is_element_by_id(page, 'cartCount'):
                                         empty_cart_safe(page, url_cart)
                                         print("Очистили корзину")
@@ -914,10 +943,11 @@ def main():
                 good_avtoriz = 0
                 while True:
                     try:
-                        browser = p.chromium.launch(headless=True)
-                        context = browser.new_context()
+                        browser = create_browser_with_settings(p)
+                        context = browser.new_context(user_agent=random.choice(USER_AGENTS))
                         page = context.new_page()
                         
+
                         autorization(page, url, username, password)
                         good_avtoriz = 1
                     except Exception as ex:
