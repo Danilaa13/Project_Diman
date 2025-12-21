@@ -1,638 +1,908 @@
-
 import time
 import os
+import traceback
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from test import redak_axi_text, addid_redac, redak_mo, get_balance
 from red_xl import red_xl
 from send_mail import send_email
 from openpyxl import Workbook
 from dotenv import load_dotenv
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from check_oasys import chek_oasys
 from check_hydraluxe import chek_hydraluxe
 from get_rastvor import add_rastvor
 
 
-
-def autorization(url, driver, username, password):
-    driver.get(url)
+def autorization(page, url, username, password):
+    """Авторизация на сайте"""
+    page.goto(url)
     time.sleep(2)
-    wait = WebDriverWait(driver, 10)
+    
     while True:
-        input_login = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="userID"]')))
-        input_password = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="password"]')))
-        btn_input = wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(), 'Войти') and @class='btn']")))
-
-        input_login.send_keys(username)
-        time.sleep(1)
-
-        if input_login.get_attribute("value") == username:
-            print("Ввел логин")
-
-            input_password.send_keys(password)
-
-            if input_password.get_attribute("value") == password:
-                print("Ввел пароль")
+        try:
+            # Ждем появления полей ввода
+            page.wait_for_selector('input[name="userID"]', timeout=10000)
+            page.wait_for_selector('input[name="password"]', timeout=10000)
+            
+            # Вводим логин
+            page.fill('input[name="userID"]', username)
+            time.sleep(1)
+            
+            # Проверяем, что логин введен
+            login_value = page.input_value('input[name="userID"]')
+            if login_value == username:
+                print("Ввел логин")
+                
+                # Вводим пароль
+                page.fill('input[name="password"]', password)
+                time.sleep(1)
+                
+                # Проверяем, что пароль введен
+                password_value = page.input_value('input[name="password"]')
+                if password_value == password:
+                    print("Ввел пароль")
+                else:
+                    page.reload()
+                    time.sleep(2)
+                    continue
             else:
-                driver.refresh()
+                page.reload()
                 time.sleep(2)
                 continue
-        else:
-            driver.refresh()
+            
+            # Нажимаем кнопку входа
+            page.click('//a[contains(text(), "Войти") and @class="btn"]')
+            print('Нажал на кнопку входа')
+            break
+            
+        except PlaywrightTimeoutError:
+            print("Таймаут при авторизации, перезагружаю страницу")
+            page.reload()
             time.sleep(2)
-            continue
-        
-        btn_input.click()
-        print('нажал на кнопку входа')
-        break
-
-    return driver
-
-
-def start_order(driver, wait):
-    order_lenses_btn = wait.until(EC.presence_of_element_located((By.XPATH, "//a[@title='Заказать линзы' and @id='link1']")))
-    order_lenses_btn.click()
-    order_entry = wait.until(EC.presence_of_element_located((By.XPATH, "//a[@id='menu-ordering-touch' and contains(text(), 'Ввод заказа')]")))
-    order_entry.click()
-
-    return driver
-
-
-def get_product_selection(driver, wait):
-    select_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'select[name="selectedBrandCode"]')))
-    product_names = select_box.find_elements(By.TAG_NAME, 'option')
     
-    return {
-        'driver': driver,
-        'product_names': product_names[1:] 
-    }
+    return page
 
+
+def start_order(page):
+    """Начало оформления заказа"""
+    page.click('//a[@title="Заказать линзы" and @id="link1"]')
+    page.click('//a[@id="menu-ordering-touch" and contains(text(), "Ввод заказа")]')
+    return page
+
+
+def get_product_selection(page):
+    """Получение списка продуктов"""
+    page.wait_for_selector('select[name="selectedBrandCode"]', timeout=10000)
     
+    # Получаем все элементы option
+    option_elements = page.query_selector_all('select[name="selectedBrandCode"] option')
+    
+    # Пропускаем первый элемент (пустой или placeholder)
+    product_elements = option_elements[1:] if len(option_elements) > 1 else []
+    
+    return product_elements
 
-def set_parametr_product(driver, test_quantity):
-    wait = WebDriverWait(driver, 10)
-    select_all_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[contains(text(), "Выбрать все")]')))
-    select_all_btn.click()
+
+def set_parametr_product(page, test_quantity):
+    """Установка параметров продукта"""
+    # Нажимаем "Выбрать все"
+    page.click('//a[contains(text(), "Выбрать все")]')
     time.sleep(1)
-    #ищем окошечки для ввода количества
-    windows_for_number = driver.find_elements(By.CLASS_NAME, 'drawer-line-quantity-halo')
-    for window in windows_for_number:
-        input_number = window.find_element(By.TAG_NAME, 'input')
-        input_number.clear()
-        input_number.send_keys(str(test_quantity))
-
-    #ищем чекбокс "Выбрать все" и кликаем на него
-    checkbox_select_all = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[id="drawer-select-all-check"]')))
-    checkbox_select_all.click()
+    
+    # Заполняем все поля с количеством
+    quantity_inputs = page.locator('.drawer-line-quantity-halo input').all()
+    for input_field in quantity_inputs:
+        input_field.fill(str(test_quantity))
+    
+    # Кликаем чекбокс "Выбрать все"
+    page.check('input[id="drawer-select-all-check"]')
     time.sleep(2)
 
 
-def add_to_cart(driver):
-    wait = WebDriverWait(driver, 10)
-    #ищем кнопку "Добавить в корзину" и кликаем на неё
-    add_to_cart_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[id="add-to-cart-button-rx"]')))
-    add_to_cart_btn.click()
+def add_to_cart(page):
+    """Добавление в корзину"""
+    page.click('a[id="add-to-cart-button-rx"]')
+    time.sleep(1)
+
+
+def empty_cart_safe(page, url_cart):
+    """Умная очистка корзины с проверками"""
     
-
-
-def empty_cart(driver, url, wait):
-    driver.get(url)
-    select_all_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Удалить"]')))
-    select_all_btn.click()
-
-
-def check_style(driver, css_selector, styles_to_check:dict):
-    #css_selector = 'your_css_selector'
-    #styles_to_check = {'color': 'red', 'font-size': '16px'}
-    # Формирование JavaScript-кода для проверки стилей
-    script = f"""
-    var element = document.querySelector('{css_selector}');
-    var styles = window.getComputedStyle(element);
-    """
-
-    # Добавление условий для каждого стиля
-    for style, value in styles_to_check.items():
-        script += f"if (styles.{style} !== '{value}') return false;"
-
-    # Возвращение true, если все стили соответствуют
-    script += "return true;"
-
-    # Выполнение JavaScript-кода
-    result = driver.execute_script(script)
-
-    # Проверка результата
-    return result
-
-
-def is_element_present_by_id(driver, element_id, styles_to_check:dict):
+    # 1. Проверяем, не находимся ли мы УЖЕ на странице корзины
+    if 'viewCart.xo' in page.url:
+        print("Уже на странице корзины, проверяю содержимое...")
+    else:
+        # 2. Пытаемся перейти на страницу корзины
+        try:
+            page.goto(url_cart, timeout=10000, wait_until='domcontentloaded')
+        except Exception as e:
+            print(f"Ошибка перехода в корзину: {e}")
+            print("Возможно, сессия устарела. Пропускаю очистку.")
+            return
     
+    # 3. Пытаемся найти и нажать кнопку удаления (если есть)
     try:
-        driver.find_element(By.ID, f'{element_id}')
-        x = check_style(driver, f'#{element_id}', styles_to_check)
-        return True and x
-    except NoSuchElementException:
+        # Даем странице время на полную загрузку динамического контента
+        page.wait_for_load_state('networkidle', timeout=5000)
+        
+        delete_btn = page.wait_for_selector('a[title="Удалить"]', timeout=3000)
+        if delete_btn.is_visible():
+            delete_btn.click()
+            # Ждем подтверждения или обновления страницы
+            page.wait_for_timeout(1000)
+            print("✓ Корзина очищена")
+        else:
+            print("Кнопка удаления не видима")
+    except:
+        print("Корзина уже пуста или элементы управления изменились")
+
+
+def check_element_visible(page, selector, attribute=None, expected_value=None):
+    """Проверка видимости элемента и его атрибутов"""
+    try:
+        element = page.locator(selector)
+        if element.is_visible():
+            if attribute and expected_value:
+                actual_value = element.get_attribute(attribute)
+                return actual_value == expected_value
+            return True
         return False
-    
-
-def is_element_by_id(element_id, driver):
-    try:
-        driver.find_element(By.ID, f'{element_id}')
-        return True 
-    except NoSuchElementException:
+    except:
         return False
 
 
+def is_element_present_by_id(page, element_id, styles_to_check=None):
+    """Проверка наличия элемента по ID и его стилей"""
+    try:
+        element = page.locator(f'#{element_id}')
+        if element.is_visible():
+            if styles_to_check:
+                # Проверяем стили через JavaScript
+                script = f"""
+                var element = document.querySelector('#{element_id}');
+                if (!element) return false;
+                var styles = window.getComputedStyle(element);
+                """
+                for style, value in styles_to_check.items():
+                    script += f"if (styles.{style} !== '{value}') return false;"
+                script += "return true;"
+                
+                result = page.evaluate(script)
+                return result
+            return True
+        return False
+    except:
+        return False
+
+
+def is_element_by_id(page, element_id):
+    """Проверка наличия элемента по ID"""
+    try:
+        element = page.locator(f'#{element_id}')
+        return element.is_visible()
+    except:
+        return False
 
 
 def main():
     start_time = time.time()
     load_dotenv()
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-software-rasterizer")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-    #service=Service(ChromeDriverManager().install()),options=options
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-
-
-    wb = Workbook() #Москва
+    
+    # Создаем рабочие книги
+    wb = Workbook()  # Москва
     ws = wb.active
-
     ws.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb2 = Workbook() #Ростов
+    wb2 = Workbook()  # Ростов
     ws2 = wb2.active
-
     ws2.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb3 = Workbook() #Казань
+    wb3 = Workbook()  # Казань
     ws3 = wb3.active
-
     ws3.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb4 = Workbook() #Казань
+    wb4 = Workbook()  # СПБ
     ws4 = wb4.active
-
     ws4.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb5 = Workbook() #Казань
+    wb5 = Workbook()  # Новосибирск
     ws5 = wb5.active
-
     ws5.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
-    wb6 = Workbook() #Казань
+    wb6 = Workbook()  # Екатеринбург
     ws6 = wb6.active
-
     ws6.append(['Наименование', 'Наименование артикула', 'Остаток', 'Адрес'])
 
+    # workbooks = [wb, wb2, wb3, wb4, wb5, wb6]
+    # worksheets = [ws, ws2, ws3, ws4, ws5, ws6]
+    workbooks = [wb,]
+    worksheets = [ws,]
+    
+    # Настройки
     username = os.getenv("LOGIN")
     password = os.getenv("PASS")
+    start_url = "https://www.jnjvision.com/eocs-rwd/startExternal.xo"
     url = "https://www.jnjvision.com/eocs-rwd/startExternal.xo?salesOrg=0020&localeID=ru_RU"
     url_order = "https://www.jnjvision.com/eocs-rwd/shipToSelection.xo?actionString=continueToCheckout"
     url_cart = "https://www.jnjvision.com/eocs-rwd/viewCart.xo?formAction=clearCartWarning"
+    url_prod = "https://www.jnjvision.com/eocs-rwd/touchProductOrder.xo?formAction=showProducts"
     
-    
-
-    driver = autorization(url, driver, username, password)
-    time.sleep(2)
-    print("Авторизация прошла успешно")
-
-    home_page = driver.current_url
-    
-
+    # Адреса и названия линз
     addresses = {
-        0:'RU14102', #Москва
-        1:'RU39813', #Ростов
-        2:'RU51798', #Казань
-        3:'RU51799', #СПБ
-        4:'RU51797', #Новосибирск
-        5:'RU51814', #Екатеринбург
-        
-        } 
+        0: 'RU14102',  # Москва
+        # 1: 'RU39813',  # Ростов
+        # 2: 'RU51798',  # Казань
+        # 3: 'RU51799',  # СПБ
+        # 4: 'RU51797',  # Новосибирск
+        # 5: 'RU51814',  # Екатеринбург
+    }
     
     lens_name = {
-                0:'1-day Acuvue moist',
-                1:'1-day Acuvue moist for astigmatism',
-                2:'Acuvue 2', 
-                3:'Acuvue Oasys with hydraclear plus',
-                4:'Acuvue Oasys for astigmatism with hydraclear plus',
-                5:'Acuvue Oasys 1-day with hydraluxe',
-                6:'1-day Acuvue moist multifocal',
-                7:'Acuvue Oasys 1-day with hydraluxe for astigmatism',
-                8:'Acuvue Oasys max 1-day',
-                9:'Acuvue Oasys multifocal',
-                10:'Acuvue Oasys Max 1-Day Multifocal',
-                }
-
+        0: '1-day Acuvue moist',
+        1: '1-day Acuvue moist for astigmatism',
+        2: 'Acuvue 2',
+        3: 'Acuvue Oasys with hydraclear plus',
+        4: 'Acuvue Oasys for astigmatism with hydraclear plus',
+        5: 'Acuvue Oasys 1-day with hydraluxe',
+        6: '1-day Acuvue moist multifocal',
+        7: 'Acuvue Oasys 1-day with hydraluxe for astigmatism',
+        8: 'Acuvue Oasys max 1-day',
+        9: 'Acuvue Oasys multifocal',
+        10: 'Acuvue Oasys Max 1-Day Multifocal',
+    }
+    
     product_change = "Новый"
     product_number = 0
-    product_end_number = 1
+    end_number = 2
     curves_number = 0
     blister_number = 0
     cylinder_number = 0
     axis_number = 0
     addidation_number = 0
-    test_quntity = 100
+    test_quantity = 100
     num_miopii = 8
+    count_except = 0
+    
+    # Запускаем Playwright
+    with sync_playwright() as p:
+        # Запускаем браузер в видимом режиме
+        browser = p.chromium.launch(
+            headless=True,  # Видимый браузер
+            args=[
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-software-rasterizer'
+            ]
+        )
+        
+        # Создаем контекст и страницу
+        context = browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+        )
+        page = context.new_page()
+        
+        # Авторизация
+        autorization(page, url, username, password)
+        time.sleep(2)
+        print("Авторизация прошла успешно")
+        
+        home_page = page.url
+        
+        
+        while True:
+            current_url = page.url
+            print(f"Текущий URL: {current_url}")
 
-    while True:
-        wait = WebDriverWait(driver, 10)
+            # Сравнить с нужным адресом URL
+            if current_url == start_url:
+                print("Мы на странице авторизации.")
+                time.sleep(10)
 
-        try:
-            if is_element_by_id('cartCount', driver):
-                empty_cart(driver, url_cart, wait)
+                autorization(page, url, username, password)
+                time.sleep(2)
+                print("Авторизация прошла успешно")
+
+            # Проверяем и очищаем корзину если нужно
+            if is_element_by_id(page, 'cartCount'):
+                empty_cart_safe(page, url_cart)
+            try:
+                # Переходим на страницу продуктов
+                page.goto(url_prod)
+                time.sleep(1)
+                print("Мы на странице оформления заказа")
                 
-            startpage_order_driver = start_order(driver, wait)
-            product_selection = get_product_selection(startpage_order_driver, wait)
-
-            
-            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[role="presentation"]'))).click()
-            product_names = product_selection['product_names']
-
-            #пока удалим наименование миопии, будем их пропускать
-            del product_names[num_miopii]
-
-            cylinder_presence = False
-            addid_presence = False
-            count_exept_order = 0
-
-            while product_number < len(product_names):
-
-                product_names[product_number].click()
-                print("Выбрал продукт")
-                #выбираем комерческую поставку
-                commercial_order_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[id="id_revenue_button"]')))
-
-                commercial_order_btn.click()
-                print("Выбрал поставку")
-                #выбираем кривизну
+                # Открываем выпадающий список
+                page.click('span[role="presentation"]')
+                time.sleep(1)
                 
-                base_curves_btn = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[id="id_revenue_basecurves"]')))
-                curves_btns = base_curves_btn.find_elements(By.TAG_NAME, 'a')
+                # Получаем список продуктов как элементы
+                product_elements = get_product_selection(page)
+                
+                # Пропускаем миопию (удаляем 8-й элемент если есть)
+                if len(product_elements) > num_miopii:
+                    del product_elements[num_miopii]
+                
+                print(f"Найдено продуктов: {len(product_elements)}")
+                
+                cylinder_presence = False
+                addid_presence = False
+                count_exept_order = 0
+                
+                
+                while product_number < len(product_elements):
+                    # Сравнить с нужным адресом URL
+                    current_url = page.url
+                    print(f"Текущий URL: {current_url}")
+                    if current_url == start_url:
+                        print("Мы на странице авторизации.")
+                        time.sleep(10)
 
-                if curves_number < len(curves_btns):
-                    curves_btns[curves_number].click()
-                    print("Выбрал кривизну")
+                        autorization(page, url, username, password)
+                        time.sleep(2)
+                        print("Авторизация прошла успешно")
+                    # Кликаем на продукт (используем JavaScript для надежности)
+                    try:
+                        # Способ 1: Прямой клик через JavaScript
+                        product_value = product_elements[product_number].get_attribute('value')
+                        if product_value:
+                            page.evaluate(f"""
+                                document.querySelector('select[name="selectedBrandCode"]').value = '{product_value}';
+                                document.querySelector('select[name="selectedBrandCode"]').dispatchEvent(new Event('change'));
+                            """)
+                            print(f"Выбрал продукт {product_number}: {lens_name.get(product_number, 'Unknown')}")
+                            time.sleep(2)
+                        else:
+                            # Способ 2: Прямой клик на элемент
+                            product_elements[product_number].click()
+                            print(f"Кликнул на продукт {product_number}")
+                            time.sleep(2)
+                    except Exception as e:
+                        print(f"Ошибка выбора продукта: {e}")
+                        # Пробуем альтернативный способ
+                        try:
+                            page.wait_for_selector('select[name="selectedBrandCode"]', timeout=10000)
+                            select_element = page.query_selector('select[name="selectedBrandCode"]')
+                            select_element.select_option(index=product_number + 1)  # +1 потому что первый option пустой
+                            print(f"Выбрал продукт через select_option")
+                            time.sleep(2)
+                        except Exception as e2:
+                            print(f"Альтернативный способ тоже не сработал: {e2}")
+                            product_number += 1
+                            continue
+                    
+                    # Проверяем, активировалась ли кнопка коммерческой поставки
                     time.sleep(1)
                     
-                    #проверяем есть ли цилиндры и оси для выбора
-                    if is_element_present_by_id(driver, 'id_cylinders_and_axes', {'display': 'block'}):
-                        print("цилиндры есть")
-                        cylinder_presence = True
-                        cylinders_window = driver.find_element(By.CSS_SELECTOR, 'select[id="id_cylinder_select"]')
-                        cylinders = cylinders_window.find_elements(By.TAG_NAME, 'option')[1:]
-
-                        if cylinder_number < len(cylinders):
-                            cylinders[cylinder_number].click()
-                            print("Выбрал цилиндр")
-                            time.sleep(1)
-
-                        axis_window = driver.find_element(By.CSS_SELECTOR, 'select[id="id_axis_select"]')
-                        axis = axis_window.find_elements(By.TAG_NAME, 'option')[1:]
-
-                        if axis_number < len(axis):
-                            axis[axis_number].click()
-                            print("Выбрал ось")
-                            time.sleep(1)
-
-
-                    #проверяем есть ли адддация 
-                    if is_element_present_by_id(driver, 'id_add_powers', {'display': 'block'}):
-                        print("аддидация есть")
-                        addid_presence = True
-                        addidations_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_add_power_buttons"]')
-                        addidation_btns = addidations_window.find_elements(By.TAG_NAME, 'a')
-
-                        if addidation_number < len(addidation_btns):
-                            addidation_btns[addidation_number].click()
-                            print("Выбрал аддидацию")
-                            time.sleep(1)
-                    
-                    #проверяем есть ли блистеры для выбора
-                    if is_element_present_by_id(driver, 'id_single_uom_buttons', {'display': 'block'}):
-                        print("блистеры есть")
-                        blister_window = driver.find_element(By.CSS_SELECTOR, 'div[id="id_single_uom_buttons"]')
-                        blisters = blister_window.find_elements(By.TAG_NAME, 'a')
-
-                        if blister_number < len(blisters):
-                            package_volume = blisters[blister_number].text
-                            blisters[blister_number].click()
-                            print("Выбрал блистер")
-                            time.sleep(1)
-                            set_parametr_product(driver, test_quntity)
-                            print("Выбрал все варианты")
-                            time.sleep(1)
-                            add_to_cart(driver)
-                            print("Добавил в корзину")
-                            time.sleep(1)
-
-                    # добавили продукт в корзину
-                    # переходим к оформлению заказа 
-                    
-                    adres = 0
-                    
-                    while adres < len(addresses):
-                        
-                        driver.get(url_order)
-                        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-                        time.sleep(2)
-                       
-                        print(driver.execute_script("return document.readyState"))
-                        print(driver.execute_script("return navigator.webdriver"))
-
-                        print("начинаю цикл")
-                        print("страница с адресом")
-
-                        if count_exept_order == 3:
-                            print("Не смог пройти процесс оформлениязаказа")
-                            break
-                        
-                        try:
-                            wait.until(EC.element_to_be_clickable((By.XPATH, f'//label[contains(text(), "{addresses[adres]}")]'))).click()
-                            print("выбрал адрес")
-                        except Exception as ex:
-                            print(ex)
-                            count_exept_order+=1
-                            continue
-                        
-                        try:
-                            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
-                            print("нажал кнопку продолжить")
-                        except Exception as ex:
-                            print(ex)
-                            count_exept_order+=1
-                            continue
-
-                        try:
-                            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]'))).click()
-                            print("еще раз продолжить")
-                        except Exception as ex:
-                            print(ex)
-                            count_exept_order+=1
-                            continue
-
-                        try:
-                            elem2 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[title="Продолжить"]')))
-                            elem2.click()
-                        except TimeoutException:
-                            print("Предварительной страницы с отсутствующими позициями не было.")
-
-                        print('отсюда собираем информацию') 
-                        try:
-                            products_text = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div[class="table-item stack"]')))
-                        except TimeoutException:
-                            print("Нет информации")
-                            time.sleep(20)
-                            continue
-                        
-                        for num, text_in in enumerate(products_text):
-                            print(addresses[adres])
-                            lines = text_in.text.split('\n')
-                            curvature = lines[0].split()[-1].replace(',', '.')
-
-                            lines[0] = lens_name[product_number]
-                            if package_volume == '24':
-                                lines[0] = f'{lines[0]} ({package_volume} линзы)'
-                            else:
-                                lines[0] = f'{lines[0]} ({package_volume} линз)'
-
-                            if 'Ось' in lines[1]:
-                                lines[1] = redak_axi_text(lines[1], curvature, package_volume, product_number)
-                                if lines[1].endswith("+0.00"):
-                                    e = lines[1].split()
-                                    e[-1] = '0.00'
-                                    lines[1] = ' '.join(e)
-                            elif 'Аддидация' in lines[1]:
-                                lines[1] = addid_redac(lines[1], curvature)
-                            else:
-                                lines[1] = redak_mo(lines[1], curvature)
-
-
-                            if len(lines) == 2:
-                                lines.append(test_quntity)
-                            else:
-                                lines[2] = get_balance(lines[2])
-                            
-                            if len(lines) == 4:
-                                lines = lines[:-1]
-
-                            if adres == 0: #Москва
-                                lines.append('Шолохова')
-                                ws.append(lines)
-                            elif adres == 1: #Ростов
-                                lines.append('Островитянова')
-                                ws2.append(lines)
-                            elif adres == 2: #Казань
-                                lines.append('ул Восстания')
-                                ws3.append(lines)
-                            elif adres == 3: #СПБ
-                                lines.append('пр-кт Обуховской Обороны')
-                                ws4.append(lines)
-                            elif adres == 4: #Новосибирск
-                                lines.append('ул Гоголя')
-                                ws5.append(lines)
-                            elif adres == 5: #Екатеринбург
-                                lines.append('ул Норильская')
-                                ws6.append(lines)
-                            
-                            
-
-                            print(num, lines)
-                            print()
-
-                        adres += 1
-                        if adres == len(addresses):
-                            break
-                        else:
-                            print("идем на следующий круг")
-                            driver.get(url_order)
-
-                    if count_exept_order == 3:
-                        raise ValueError('Столкнулись с непрогрузом страницы. Делаем перезагрузку.')
-
-                    blister_number += 1
-
-                    if cylinder_presence:
-                        if blister_number == len(blisters):
-                            blister_number = 0
-                            axis_number += 1
-
-                        if axis_number == len(axis):
-                            axis_number = 0
-                            cylinder_number += 1
-                        
-                        if cylinder_number == len(cylinders):
-                            cylinder_number = 0
-                            curves_number += 1
-
-                        if curves_number == len(curves_btns):
-                            product_number += 1
-                            product_change = "Новый"
-                            blister_number = 0
-                            curves_number = 0
-                        else:
-                            product_change = "Старый"
-
-                    elif addid_presence:
-                        if blister_number == len(blisters):
-                            blister_number = 0
-                            addidation_number += 1
-                        if addidation_number == len(addidation_btns):
-                            addidation_number = 0
-                            curves_number += 1
-                        if curves_number == len(curves_btns):
-                            product_number += 1
-                            product_change = "Новый"
-                            blister_number = 0
-                            curves_number = 0
-                        else:
-                            product_change = "Старый"
-
-                    else:
-                        if blister_number == len(blisters):
-                            curves_number += 1
-                            blister_number = 0
-                                
-                        if curves_number == len(curves_btns):
-                            product_number += 1
-                            product_change = "Новый"
-                            blister_number = 0
-                            curves_number = 0
-                        else:
-                            product_change = "Старый"
-                        
-
-                    empty_cart(driver, url_cart, wait)
-                    print("Очистили корзину")
-                    break
-
-            
-            print("Вышли из цикла")
-            
-            
-
-            print(f"Продукт {product_number}.{product_change}")
-            print(f"Кривизна {curves_number}")
-            print(f"Цилиндр {cylinder_number}")
-            print(f"Ось {axis_number}")
-            print(f"Блистер {blister_number}")
-            
-            
-
-            if product_number == len(product_names):
-                print("Прошлись по всем продуктам")
-                wb.save('rostov.xlsx')
-                wb2.save('moscow.xlsx')
-                wb3.save('kazan.xlsx')
-                wb4.save('spb.xlsx')
-                wb5.save('novosib.xlsx')
-                wb6.save('ekb.xlsx')
-                break
-        except Exception as ex:
-            print(ex)
-            print("Что-то пошло не так, начну этот круг заново")
-
-            driver.close()
-            try:
-                driver.quit()
-            except:
-                pass
-
-            time.sleep(1)
-            #service=Service(ChromeDriverManager().install()),options=options
-
-            while True:
-                good_avtoriz = 0
-                try:
-                    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-                    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-                    driver = autorization(url, driver, username, password)
-                    good_avtoriz += 1
-                except Exception as ex:
-                    print(ex)
-                    driver.close()
+                    # Выбираем коммерческую поставку
                     try:
-                        driver.quit()
-                    except:
-                        pass
-                    time.sleep(20)
-                    continue
+                        page.wait_for_selector('a[id="id_revenue_button"]', timeout=10000)
+                        commercial_order_btn = page.query_selector('a[id="id_revenue_button"]')
+                        if commercial_order_btn and commercial_order_btn.is_visible():
+                            commercial_order_btn.click()
+                            print("Выбрал поставку")
+                            time.sleep(1)
+                        else:
+                            print("Кнопка коммерческой поставки не найдена")
+                            product_number += 1
+                            continue
+                    except Exception as e:
+                        print(f"Ошибка выбора поставки: {e}")
+                        product_number += 1
+                        continue
+                    
+                    # Выбираем кривизну
+                    try:
+                        page.wait_for_selector('div[id="id_revenue_basecurves"]', timeout=10000)
+                        base_curves_div = page.query_selector('div[id="id_revenue_basecurves"]')
+                        if base_curves_div and base_curves_div.is_visible():
+                            curves_btns = base_curves_div.query_selector_all('a')
+                            print(f"Найдено кривизн: {len(curves_btns)}")
+                            
+                            if curves_number < len(curves_btns):
+                                curves_btns[curves_number].click()
+                                print(f"Выбрал кривизну {curves_number}")
+                                time.sleep(1)
+                            else:
+                                print(f"Кривизна {curves_number} не найдена")
+                                curves_number = 0
+                                product_number += 1
+                                continue
+                        else:
+                            print("Блок кривизн не найден")
+                            product_number += 1
+                            continue
+                    except Exception as e:
+                        print(f"Ошибка выбора кривизны: {e}")
+                        product_number += 1
+                        continue
+                    
+                    # Проверяем есть ли цилиндры и оси
+                    cylinder_presence = False
+                    try:
+                        
+                        cylinders_and_axes = page.query_selector('#id_cylinders_and_axes')
+                        if cylinders_and_axes and cylinders_and_axes.is_visible():
+                            style = cylinders_and_axes.get_attribute('style')
+                            if style and 'display: block' in style:
+                                print("цилиндры есть")
+                                cylinder_presence = True
+                                
+                                # Выбираем цилиндр
+                                page.wait_for_selector('select[id="id_cylinder_select"]', timeout=10000)
+                                cylinders_select = page.query_selector('select[id="id_cylinder_select"]')
+                                cylinder = cylinders_select.query_selector_all('option')[1:]
+                                if cylinders_select:
+                                    # Получаем все опции
+                                    cylinders_options = cylinders_select.query_selector_all('option')
+                                    
+                                    if len(cylinders_options) > 1 and cylinder_number < len(cylinder):  # Есть опции кроме placeholder
+                                        # Выбираем по индексу (индексы начинаются с 0)
+                                        cylinders_select.select_option(index=cylinder_number + 1)  # +1 потому что первый option обычно пустой
+                                        print(f"Выбрал цилиндр {cylinder_number} через select_option")
+                                        time.sleep(1)
+                                    else:
+                                        print(f"Опции цилиндров не найдены")
+                                        cylinder_number = 0
+                                
+                                # Выбираем ось
+                                page.wait_for_selector('select[id="id_axis_select"]', timeout=10000)
+                                axis_select = page.query_selector('select[id="id_axis_select"]')
+                                axis = axis_select.query_selector_all('option')[1:]
+                                if axis_select:
+                                    # Получаем все оси
+                                    axis_options = axis_select.query_selector_all('option')
+                                    
+                                    if len(axis_options) > 1 and axis_number < len(axis): # Есть оси кроме placeholder
+                                        # Выбираем по индексу (индексы начинаются с 0)
+                                        axis_select.select_option(index=axis_number + 1)  # +1 потому что первый option обычно пустой
+                                        print(f"Выбрал ось {axis_number} через select_option")
+                                        time.sleep(1)
+                                    else:
+                                        print(f"Ось {axis_number} не найдена")
+                                        axis_number = 0
+                    except Exception as e:
+                        print(f"Ошибка обработки цилиндров: {e}")
+                    
+                    # Проверяем есть ли аддидация
+                    addid_presence = False
+                    try:
+                        
+                        add_powers = page.query_selector('#id_add_powers')
+                        if add_powers and add_powers.is_visible():
+                            style = add_powers.get_attribute('style')
+                            if style and 'display: block' in style:
+                                print("аддидация есть")
+                                addid_presence = True
+                                
+                                page.wait_for_selector('div[id="id_add_power_buttons"]', timeout=10000)
+                                add_power_buttons = page.query_selector('div[id="id_add_power_buttons"]')
+                                if add_power_buttons:
+                                    addidation_btns = add_power_buttons.query_selector_all('a')
+                                    
+                                    if addidation_number < len(addidation_btns):
+                                        addidation_btns[addidation_number].click()
+                                        print(f"Выбрал аддидацию {addidation_number}")
+                                        time.sleep(1)
+                                    else:
+                                        print(f"Аддидация {addidation_number} не найдена")
+                                        addidation_number = 0
+                    except Exception as e:
+                        print(f"Ошибка обработки аддидации: {e}")
+                    
+                    # Проверяем есть ли блистеры
+                    package_volume = "30"  # значение по умолчанию
+                    
+                    page.wait_for_selector('#id_single_uom_buttons', timeout=10000)
+                    single_uom_buttons = page.query_selector('#id_single_uom_buttons')
+                    if single_uom_buttons and single_uom_buttons.is_visible():
+                        style = single_uom_buttons.get_attribute('style')
+                        if style and 'display: block' in style:
+                            print("блистеры есть")
+                            
+                            page.wait_for_selector('div[id="id_single_uom_buttons"]', timeout=10000)
+                            blister_div = page.query_selector('div[id="id_single_uom_buttons"]')
+                            if blister_div:
+                                blisters = blister_div.query_selector_all('a')
+                                print(f"Найдено блистеров: {len(blisters)}")
+                                
+                                if blister_number < len(blisters):
+                                    package_volume = blisters[blister_number].text_content().strip()
+                                    blisters[blister_number].click()
+                                    print(f"Выбрал блистер {blister_number}: {package_volume}")
+                                    time.sleep(1)
+                                    
+                                    set_parametr_product(page, test_quantity)
+                                    print("Выбрал все варианты")
+                                    time.sleep(1)
+                                    
+                                    add_to_cart(page)
+                                    print("Добавил в корзину")
+                                    time.sleep(1)
+                                    
+                                    # Обрабатываем заказы для всех адресов
+                                    adres = 0
+                                    
+                                    while adres < len(addresses):
+                                        if count_exept_order == 3:
+                                            print("Не смог пройти процесс оформления заказа")
+                                            current_url = page.url
+                                            print(f"Текущий URL: {current_url}")
+                                            break
 
-                if good_avtoriz:
+                                        try:
+                                            # Ждем навигации, а не просто делаем sleep
+                                            response = page.goto(url_order, wait_until="networkidle", timeout=30000)
+                                            if response and response.ok:
+                                                print(f"Успешно перешли на страницу выбора адреса. URL: {page.url}")
+                                            else:
+                                                print("⚠️ Предупреждение: страница загрузилась, но статус ответа не OK.")
+                                        except Exception as nav_error:
+                                            print(f"⛔ Критическая ошибка навигации: {nav_error}")
+                                            count_exept_order += 1
+                                            # Можно попробовать перезагрузить всю сессию
+                                            # reset_session(...)
+                                            continue
+                                        time.sleep(2)
+
+                                        current_url = page.url
+                                        if "shipToSelection.xo" not in current_url:
+                                            print(f"❓ Мы не на целевой странице. Текущий URL: {current_url}")
+                                            print("Пробую принудительный переход заново...")
+                                            # Можно добавить page.reload() или повторный goto
+                                            count_exept_order += 1
+                                            continue
+
+                                        # Сравнить с нужным адресом URL
+                                        
+                                        print(f"Обрабатываю адрес: {addresses[adres]}")
+                                        
+                                        
+                                        try:
+                                            # Ищем элемент с адресом
+                                            page.wait_for_selector(f'//label[contains(text(), "{addresses[adres]}")]', timeout=10000)
+                                            address_label = page.query_selector(f'//label[contains(text(), "{addresses[adres]}")]')
+                                            if address_label:
+                                                address_label.click()
+                                                print("выбрал адрес")
+                                            else:
+                                                print(f"Адрес {addresses[adres]} не найден")
+                                                count_exept_order += 1
+                                                continue
+                                        except Exception as ex:
+                                            print(f"Ошибка выбора адреса: {ex}")
+                                            count_exept_order += 1
+                                            continue
+                                        
+                                        # Первая кнопка "Продолжить"
+                                        try:
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
+                                            continue_btns = page.query_selector_all('a[title="Продолжить"]')
+                                            if continue_btns:
+                                                continue_btns[0].click()
+                                                print("нажал кнопку продолжить (этап 1)")
+                                            else:
+                                                print("Кнопка продолжить не найдена")
+                                                count_exept_order += 1
+                                                continue
+                                        except Exception as ex:
+                                            print(f"Ошибка кнопки 1: {ex}")
+                                            count_exept_order += 1
+                                            continue
+                                        
+                                        # Вторая кнопка "Продолжить"
+                                        try:
+                                            time.sleep(1)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
+                                            continue_btns = page.query_selector_all('a[title="Продолжить"]')
+                                            if continue_btns:
+                                                continue_btns[0].click()
+                                                print("нажал кнопку продолжить (этап 2)")
+                                            else:
+                                                print("Вторая кнопка продолжить не найдена")
+                                        except Exception as ex:
+                                            print(f"Ошибка кнопки 2: {ex}")
+                                            count_exept_order += 1
+                                            continue
+                                        
+                                        # Третья кнопка "Продолжить" (если есть)
+                                        try:
+                                            time.sleep(1)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
+                                            continue_btns = page.query_selector_all('a[title="Продолжить"]')
+                                            if continue_btns:
+                                                continue_btns[0].click()
+                                                print("нажал кнопку продолжить (этап 3)")
+                                        except:
+                                            print("Третьей кнопки продолжить не было")
+                                        
+                                        print('собираем информацию')
+                                        try:
+                                            page.wait_for_selector('div[class="table-item stack"]', timeout=10000)
+                                            products_text = page.query_selector_all('div[class="table-item stack"]')
+                                        except:
+                                            print("Нет информации")
+                                            time.sleep(20)
+                                            continue
+                                        
+                                        if products_text:
+                                            for num, text_in in enumerate(products_text):
+                                                text_content = text_in.text_content().strip()
+                                                lines = [line.strip() for line in text_content.split('\n') if line.strip()]
+                                                
+
+                                                if "SPH" in lines[0]:
+                                                    lines[0] = lines[0].replace("SPH", '').replace(',', '.')
+
+                                                if len(lines) == 1:
+                                                    lines.append(lines[0].split('\xa0')[-1].split(':'))
+                                                    lines[1] = ','.join(lines[1])
+                                                    lines.append(test_quantity)
+                                                
+                                                elif len(lines) >= 2:
+                                                    lines.append(lines[1].split('.')[0])
+                                                    lines[1] = lines[0].split('\xa0')[-1].split(':')
+                                                    lines[1] = ','.join(lines[1])
+
+                                                    # Добавляем количество
+                                                    if len(lines) == 2:
+                                                        lines.append(test_quantity)
+                                                    else:
+                                                        lines[2] = get_balance(lines[2])
+                                                        
+                                                    
+                                                # Обрабатываем специфичные поля
+                                                if 'Ось' in lines[1]:
+                                                    lines[1] = redak_axi_text(lines[1], package_volume, product_number)
+                                                    if lines[1].endswith("+0.00"):
+                                                        e = lines[1].split()
+                                                        e[-1] = '0.00'
+                                                        lines[1] = ' '.join(e)
+                                                elif 'Аддидация' in lines[1]:
+                                                    lines[1] = addid_redac(lines[1])
+                                                else:
+                                                    pass
+                                                    # lines[1] = redak_mo(lines[1], curvature)
+                                                    
+                                                
+                                                    
+                                                # Убираем лишние элементы
+                                                if len(lines) == 4:
+                                                    lines = lines[:-1]
+
+
+                                                # Форматируем название продукта
+                                                product_name = lens_name.get(product_number, f"Продукт {product_number}")
+                                                lines[0] = product_name
+                                                if package_volume == '24':
+                                                    lines[0] = f'{lines[0]} (24 линзы)'
+                                                else:
+                                                    lines[0] = f'{lines[0]} ({package_volume} линз)'
+                                                    
+                                                # Добавляем адрес
+                                                address_names = [
+                                                        'Шолохова', 'Островитянова', 'ул Восстания',
+                                                        'пр-кт Обуховской Обороны', 'ул Гоголя', 'ул Норильская'
+                                                ]
+                                                    
+                                                if adres < len(address_names):
+                                                    lines.append(address_names[adres])
+                                                    
+                                                # Добавляем в соответствующую таблицу
+                                                worksheets[adres].append(lines)
+                                                    
+                                                print(f"Адрес {adres}, строка {num}: {lines}")
+                                        else:
+                                            print("Не найдены элементы с информацией о продуктах")
+                                        
+                                        adres += 1
+                                        if adres == len(addresses):
+                                            break
+                                    
+                                    if count_exept_order == 3:
+                                        raise ValueError('Столкнулись с непрогрузом страницы. Делаем перезагрузку.')
+
+                                    current_url = page.url
+                                    print(f"Текущий URL: {current_url}")
+                                    if current_url == start_url:
+                                        print("Мы на странице авторизации.")
+                                        time.sleep(10)
+
+                                        autorization(page, url, username, password)
+                                        time.sleep(2)
+                                        print("Авторизация прошла успешно")
+                                        continue
+                                    
+                                    # Обновляем индексы
+                                    blister_number += 1
+                                    
+                                    # Сбрасываем счетчики если достигли предела
+                                    if cylinder_presence:
+                                        if blister_number >= len(blisters):
+                                            blister_number = 0
+                                            axis_number += 1
+                                        
+                                        if axis_number >= len(axis):
+                                            axis_number = 0
+                                            cylinder_number += 1
+                                        
+                                        if cylinder_number >= len(cylinder):
+                                            cylinder_number = 0
+                                            curves_number += 1
+                                        
+                                        if curves_number >= len(curves_btns):
+                                            product_number += 1
+                                            product_change = "Новый"
+                                            blister_number = 0
+                                            curves_number = 0
+                                            cylinder_number = 0
+                                            axis_number = 0
+                                        else:
+                                            product_change = "Старый"
+                                    
+                                    elif addid_presence:
+                                        if blister_number >= len(blisters):
+                                            blister_number = 0
+                                            addidation_number += 1
+                                        
+                                        if addidation_number >= len(addidation_btns):
+                                            addidation_number = 0
+                                            curves_number += 1
+                                        
+                                        if curves_number >= len(curves_btns):
+                                            product_number += 1
+                                            product_change = "Новый"
+                                            blister_number = 0
+                                            curves_number = 0
+                                            addidation_number = 0
+                                        else:
+                                            product_change = "Старый"
+                                    
+                                    else:
+                                        if blister_number >= len(blisters):
+                                            curves_number += 1
+                                            blister_number = 0
+                                        
+                                        if curves_number >= len(curves_btns):
+                                            product_number += 1
+                                            product_change = "Новый"
+                                            blister_number = 0
+                                            curves_number = 0
+                                        else:
+                                            product_change = "Старый"
+                                    
+                                    # Очищаем корзину
+                                    empty_cart_safe(page, url_cart)
+                                    print("Очистили корзину")
+                                    break
+                                else:
+                                    print(f"Блистер {blister_number} не найден")
+                                    blister_number = 0
+                                    curves_number += 1
+                            else:
+                                print("Блок блистеров не найден")
+                                curves_number += 1
+                        else:
+                            print("Блистеры не видны")
+                            curves_number += 1
+                    else:
+                        print("Элемент блистеров не найден")
+                        curves_number += 1
+                    
+                    
+                    # Если не нашли блистеры, переходим к следующей кривизне
+                    if curves_number >= len(curves_btns):
+                        product_number += 1
+                        product_change = "Новый"
+                        blister_number = 0
+                        curves_number = 0
+                        cylinder_number = 0
+                        axis_number = 0
+                        addidation_number = 0
+                    else:
+                        product_change = "Старый"
+                    
+                print(f"Продукт {product_number}.{product_change}")
+                print(f"Кривизна {curves_number}")
+                print(f"Цилиндр {cylinder_number}")
+                print(f"Ось {axis_number}")
+                print(f"Блистер {blister_number}")
+                print(f"Аддидация {addidation_number}")
+                print()
+                
+                print("Вышли из цикла продуктов")
+                print(f"⛔ Критических сбоев {count_except}")
+                
+                if product_number >= len(product_elements):
+                    print("Прошлись по всем продуктам")
+                    
+                    # Сохраняем файлы
+                    # filenames = ['moscow.xlsx', 'rostov.xlsx', 'kazan.xlsx', 'spb.xlsx', 'novosib.xlsx', 'ekb.xlsx']
+                    filenames = ['moscow.xlsx',]
+                    for wb_file, filename in zip(workbooks, filenames):
+                        wb_file.save(filename)
+                    
                     break
-
-
-            while True:
-                if driver.current_url == home_page:
-                    print("Мы на главной странице")
-                    break
-                time.sleep(1)
-            continue
+            
+            except Exception as ex:
+                tb = traceback.extract_tb(ex.__traceback__)
+                if tb:
+                    # Последний вызов в стеке - где произошла ошибка
+                    last_call = tb[-1]
+                    line_no = last_call.lineno
+                    filename = last_call.filename
+                    func_name = last_call.name
+                    
+                    print(f"Ошибка в файле {filename}, строка {line_no}, функция {func_name}: {ex}")
+                else:
+                    print(f"Ошибка: {ex}")
+                    print("Что-то пошло не так, начну этот круг заново")
+                    count_except += 1
+                
+                # Закрываем браузер и перезапускаем
+                try:
+                    browser.close()
+                except:
+                    pass
+                
+                time.sleep(10)
+                
+                good_avtoriz = 0
+                while True:
+                    try:
+                        browser = p.chromium.launch(headless=True)
+                        context = browser.new_context()
+                        page = context.new_page()
+                        
+                        autorization(page, url, username, password)
+                        good_avtoriz = 1
+                    except Exception as ex:
+                        print(f"Ошибка перезапуска: {ex}")
+                        try:
+                            browser.close()
+                        except:
+                            pass
+                        time.sleep(20)
+                        continue
+                    
+                    if good_avtoriz:
+                        break
+                
+                # Ждем загрузки главной страницы
+                while page.url != home_page:
+                    time.sleep(1)
+                print("Мы на главной странице")
+                continue
         
-
-    time.sleep(5)
-
-    driver.close()
-    driver.quit()
-
-    red_xl('rostov.xlsx')
-    red_xl('moscow.xlsx')
-    red_xl('kazan.xlsx')
-    red_xl('spb.xlsx')
-    red_xl('novosib.xlsx')
-    red_xl('ekb.xlsx')
-
-    chek_oasys('moscow_ostatki.xlsx')
-    chek_oasys('rostov_ostatki.xlsx')
-    chek_oasys('kazan_ostatki.xlsx')
-    chek_oasys('spb_ostatki.xlsx')
-    chek_oasys('novosib_ostatki.xlsx')
-    chek_oasys('ekb_ostatki.xlsx')
-
+        time.sleep(5)
+        browser.close()
     
-    chek_hydraluxe('moscow_ostatki.xlsx')
-    chek_hydraluxe('rostov_ostatki.xlsx')
-    chek_hydraluxe('kazan_ostatki.xlsx')
-    chek_hydraluxe('spb_ostatki.xlsx')
-    chek_hydraluxe('novosib_ostatki.xlsx')
-    chek_hydraluxe('ekb_ostatki.xlsx')
-
-
-    add_rastvor('moscow_ostatki.xlsx')
-    add_rastvor('rostov_ostatki.xlsx')
-    add_rastvor('kazan_ostatki.xlsx')
-    add_rastvor('spb_ostatki.xlsx')
-    add_rastvor('novosib_ostatki.xlsx')
-    add_rastvor('ekb_ostatki.xlsx')
-
-
-    send_email('moscow_ostatki.xlsx', 'Москва')
-    send_email('rostov_ostatki.xlsx', 'Ростов')
-    send_email('kazan_ostatki.xlsx', 'Казань')
-    send_email('spb_ostatki.xlsx', 'Питер')
-    send_email('novosib_ostatki.xlsx', 'Новосибирск')
-    send_email('ekb_ostatki.xlsx', 'Екатеринбург')
-
+    # Обработка файлов
+    # filenames = ['moscow.xlsx', 'rostov.xlsx', 'kazan.xlsx', 'spb.xlsx', 'novosib.xlsx', 'ekb.xlsx']
+    filenames = ['moscow.xlsx',]
+    for filename in filenames:
+        red_xl(filename)
+        processed_filename = filename.replace('.xlsx', '_ostatki.xlsx')
+        
+        chek_oasys(processed_filename)
+        chek_hydraluxe(processed_filename)
+        add_rastvor(processed_filename)
+        
+        city_name = filename.replace('.xlsx', '').capitalize()
+        if city_name == 'Spb':
+            city_name = 'Питер'
+        elif city_name == 'Novosib':
+            city_name = 'Новосибирск'
+        elif city_name == 'Ekb':
+            city_name = 'Екатеринбург'
+        
+        send_email(processed_filename, city_name)
+    
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Время выполнения программы: {execution_time} секунд")
 
-        
-
-
 
 if __name__ == "__main__":
-
     while True:
         main()
         time.sleep(30)

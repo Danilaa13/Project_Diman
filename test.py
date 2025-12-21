@@ -1,32 +1,41 @@
-def redak_axi_text(q, c, n, pr_num):
-        q = q.replace(',', '.')
+st = "8.5, -0.25 | CYL, -0.75 | Ось, 10"
+# 8.5, CYL: -0.75, AXIS: 10, 30, -0.25
+
+def redak_axi_text(q, n, pr_num):
+        q = q.replace(',', '')
         q = q.replace('|', '')
-        q = q.replace('SPH:', '')
-        q = q.replace('Ось:', 'AXIS:')
+        q = q.replace('Ось', 'AXIS:')
+        q = q.replace('CYL', 'CYL:')
         q = q.split()
         new_q = q
-        new_q.append(q[0])
-        new_q[0] = c
+        
+        new_q.append(new_q.pop(1))
+
         if n == "30" and pr_num == 1:
              new_q.insert(5, n)
+
         new_q.insert(1, ', ')
         new_q.insert(4, ', ')
         new_q.insert(7, ', ')
+
         if n == "30" and pr_num == 1:
             new_q.insert(9, ', ')
+
         new_q.insert(3, ' ')
         new_q.insert(7, ' ')
 
         return "".join(new_q)
 
-# print(redak_axi_text('SPH: -0,25 | CYL: -0,75 | Ось: 10', '9.0', '60'))
+# print(redak_axi_text(st, '30', 1))
 
 
 
-s = "SPH: -2,50 | Аддидация: H"
-addid = "8.4, -0.25, HIGH (от +2.00 до +2.50), 8.4 мм"
 
-def addid_redac(s, c):
+
+sr = "8.4, -0.25 | Аддидация, H"
+#8.4, -0.25, HIGH (от +2.00 до +2.50), 8.4 мм
+
+def addid_redac(s):
         wer = {
                 "H": "HIGH (от +2.00 до +2.50)",
                 "M": "MID (от +1.50 до +1.75)",
@@ -35,7 +44,7 @@ def addid_redac(s, c):
         s = s.replace(',', '.')
         s = s.replace('| ', '')
         s = s.replace('SPH: ', '')
-        s = s.replace('Аддидация: ', '')
+        s = s.replace('Аддидация. ', '')
 
 
         if 'H' in s:
@@ -46,10 +55,16 @@ def addid_redac(s, c):
             s = s.replace('L', f"{wer['L']}, ")
 
         new_s = s.split()
-        new_s[0] = f'{new_s[0]},'
+        mm = new_s[0][:-1]
+        new_s[0] = f'{mm},'
+        new_s[1] = f'{new_s[1]},'
         s = ' '.join(new_s)
 
-        return f'{c}, {s} {c} мм'
+        return f'{s} {mm} мм'
+
+# print(addid_redac(sr))
+
+
 
 
 s2 = 'SPH: -1,25'
