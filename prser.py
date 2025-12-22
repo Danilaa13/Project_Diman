@@ -325,37 +325,33 @@ def main():
         # Запускаем браузер в видимом режиме
         browser = create_browser_with_settings(p)
 
-        USER_AGENTS = [
-            # Windows + Chrome (самые популярные)
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            
-            # macOS + Chrome
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            
-            # Windows + Firefox
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/120.0',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
-            
-            # macOS + Firefox
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/120.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/119.0',
-            
-            # Linux + Chrome
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-            
-            # Linux + Firefox
-            'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/120.0',
-            'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0',
-    ]
         
         # Создаем контекст и страницу
+        # Создаем контекст, имитирующий локальную машину
         context = browser.new_context(
-            user_agent=random.choice(USER_AGENTS)
+            viewport={'width': 1920, 'height': 1080},
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            locale='ru-RU',
+            timezone_id='Europe/Moscow',
+            # Указываем геолокацию (координаты Москвы)
+            geolocation={'latitude': 55.7558, 'longitude': 37.6173},
+            permissions=['geolocation']
         )
+        
+        # Убираем следы автоматизации через JavaScript
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+            // Убираем другие признаки
+            window.chrome = { runtime: {} };
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            );
+        """)
         page = context.new_page()
         
         # Авторизация
@@ -365,8 +361,7 @@ def main():
         
         home_page = page.url
         
-        if is_element_by_id(page, 'cartCount'):
-            empty_cart_safe(page, url_cart)
+
         
         while True:
             current_url = page.url
@@ -382,6 +377,8 @@ def main():
                 print("Авторизация прошла успешно")
 
             # Проверяем и очищаем корзину если нужно
+            if is_element_by_id(page, 'cartCount'):
+                empty_cart_safe(page, url_cart)
             
             try:
                 # Переходим на страницу продуктов
@@ -947,7 +944,32 @@ def main():
                     try:
                         response = requests.get("http://91.77.161.132:13200/proxy/WY8Iktuw/", timeout=10)
                         browser = create_browser_with_settings(p)
-                        context = browser.new_context(user_agent=random.choice(USER_AGENTS))
+                        # Создаем контекст и страницу
+                        # Создаем контекст, имитирующий локальную машину
+                        context = browser.new_context(
+                            viewport={'width': 1920, 'height': 1080},
+                            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            locale='ru-RU',
+                            timezone_id='Europe/Moscow',
+                            # Указываем геолокацию (координаты Москвы)
+                            geolocation={'latitude': 55.7558, 'longitude': 37.6173},
+                            permissions=['geolocation']
+                        )
+                        
+                        # Убираем следы автоматизации через JavaScript
+                        context.add_init_script("""
+                            Object.defineProperty(navigator, 'webdriver', {
+                                get: () => undefined
+                            });
+                            // Убираем другие признаки
+                            window.chrome = { runtime: {} };
+                            const originalQuery = window.navigator.permissions.query;
+                            window.navigator.permissions.query = (parameters) => (
+                                parameters.name === 'notifications' ?
+                                    Promise.resolve({ state: Notification.permission }) :
+                                    originalQuery(parameters)
+                            );
+                        """)
                         page = context.new_page()
                         
 
