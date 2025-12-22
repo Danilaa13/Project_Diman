@@ -376,14 +376,19 @@ def main():
                 time.sleep(2)
                 print("Авторизация прошла успешно")
 
-            # Проверяем и очищаем корзину если нужно
-            if is_element_by_id(page, 'cartCount'):
-                empty_cart_safe(page, url_cart)
+            
             
             try:
+                # Проверяем и очищаем корзину если нужно
+                if is_element_by_id(page, 'cartCount'):
+                    empty_cart_safe(page, url_cart)
                 # Переходим на страницу продуктов
                 try:
-                    response = page.goto(url_prod, timeout=120000)  # Таймаут 120 секунд (2 минуты)
+                    response = page.goto(
+                        url_prod,
+                        timeout=120000,
+                        wait_until="domcontentloaded"  # Быстрее, ждет загрузки HTML и скриптов
+                    )  # Таймаут 120 секунд (2 минуты)
                     print(f"Страница загрузилась, статус: {response.ok}")
                 except Exception as e:
                     print(f"Критическая ошибка при загрузке: {e}")
