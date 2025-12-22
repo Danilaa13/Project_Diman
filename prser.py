@@ -706,7 +706,7 @@ def main():
                                             while True:
                                                 page.wait_for_selector('div[class="table-item stack"]', timeout=10000)
                                                 products_text = page.query_selector_all('div[class="table-item stack"]')
-                                                if product_number == 0 and len(products_text) < 20:
+                                                if product_number == 0 and len(products_text) < 20 and ('proceedToCheckout.xo' in page.url):
                                                     time.sleep(1)
                                                     page.reload()
                                                     time.sleep(2)
