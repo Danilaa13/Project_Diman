@@ -287,7 +287,7 @@ def main():
     # Адреса и названия линз
     addresses = {
         0: 'RU14102',  # Москва
-        # 1: 'RU39813',  # Ростов
+        # 0: 'RU39813',  # Ростов
         # 2: 'RU51798',  # Казань
         # 3: 'RU51799',  # СПБ
         # 4: 'RU51797',  # Новосибирск
@@ -387,8 +387,7 @@ def main():
                 try:
                     response = page.goto(
                         url_prod,
-                        timeout=120000,
-                        wait_until="domcontentloaded"  # Быстрее, ждет загрузки HTML и скриптов
+                        timeout=120000  
                     )  # Таймаут 120 секунд (2 минуты)
                     print(f"Страница загрузилась, статус: {response.ok}")
                 except Exception as e:
@@ -433,36 +432,59 @@ def main():
                         print("Авторизация прошла успешно")
                     # Кликаем на продукт (используем JavaScript для надежности)
                     try:
-                        # Способ 1: Прямой клик через JavaScript
-                        product_value = product_elements[product_number].get_attribute('value')
-                        if product_value:
-                            page.evaluate(f"""
-                                document.querySelector('select[name="selectedBrandCode"]').value = '{product_value}';
-                                document.querySelector('select[name="selectedBrandCode"]').dispatchEvent(new Event('change'));
-                            """)
-                            print(f"Выбрал продукт {product_number}: {lens_name.get(product_number, 'Unknown')}")
-                            time.sleep(2)
-                        else:
-                            # Способ 2: Прямой клик на элемент
-                            product_elements[product_number].click()
-                            print(f"Кликнул на продукт {product_number}")
-                            time.sleep(2)
-                    except Exception as e:
-                        print(f"Ошибка выбора продукта: {e}")
-                        # Пробуем альтернативный способ
+                        print(f"Выбираю продукт {product_number}...")
+                        
+                        # Пробуем через select_option с expect_navigation (ПРЯМО СНАЧАЛА)
                         try:
                             page.wait_for_selector('select[name="selectedBrandCode"]', state='visible', timeout=10000)
                             select_element = page.query_selector('select[name="selectedBrandCode"]')
-                            select_element.select_option(index=product_number + 1)  # +1 потому что первый option пустой
-                            print(f"Выбрал продукт через select_option")
+                            
+                            # ВАЖНО: Если ожидаем навигацию - она должна охватывать ВСЕ способы выбора
+                            with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
+                                # Способ 1: select_option (основной)
+                                select_element.select_option(index=product_number + 1)
+                            
+                            print(f"✓ Выбрал продукт через select_option с навигацией")
                             time.sleep(2)
-                        except Exception as e2:
-                            print(f"Альтернативный способ тоже не сработал: {e2}")
-                            exept_count += 1
-                            page.reload()
-                            if 'startExternal.xo' in page.url:
-                                exept_count = 3
-                            continue
+                            
+                        except Exception as e1:
+                            print(f"Способ 1 не сработал: {e1}")
+                            
+                            # Способ 2: JavaScript (тоже внутри expect_navigation если нужен)
+                            try:
+                                product_value = product_elements[product_number].get_attribute('value')
+                                if product_value:
+                                    with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
+                                        page.evaluate(f"""
+                                            document.querySelector('select[name="selectedBrandCode"]').value = '{product_value}';
+                                            document.querySelector('select[name="selectedBrandCode"]').dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                        """)
+                                    print(f"✓ Выбрал продукт через JavaScript с навигацией")
+                                    time.sleep(2)
+                                else:
+                                    raise ValueError("Нет value у элемента")
+                                    
+                            except Exception as e2:
+                                print(f"Способ 2 не сработал: {e2}")
+                                
+                                # Способ 3: Прямой клик
+                                try:
+                                    with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
+                                        product_elements[product_number].click()
+                                    print(f"✓ Выбрал продукт через клик с навигацией")
+                                    time.sleep(2)
+                                except Exception as e3:
+                                    print(f"Все способы не сработали: {e3}")
+                                    exept_count += 1
+                                    page.reload()
+                                    if 'startExternal.xo' in page.url:
+                                        exept_count = 3
+                                    continue
+
+                    except Exception as e:
+                        print(f"Общая ошибка выбора продукта: {e}")
+                        exept_count += 1
+                        continue
                     
                     # Проверяем, активировалась ли кнопка коммерческой поставки
                     time.sleep(1)
