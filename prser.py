@@ -701,9 +701,18 @@ def main():
                                             print("Третьей кнопки продолжить не было")
                                         
                                         print('собираем информацию')
+                                        
                                         try:
-                                            page.wait_for_selector('div[class="table-item stack"]', timeout=10000)
-                                            products_text = page.query_selector_all('div[class="table-item stack"]')
+                                            while True:
+                                                page.wait_for_selector('div[class="table-item stack"]', timeout=10000)
+                                                products_text = page.query_selector_all('div[class="table-item stack"]')
+                                                if product_number == 0 and len(products_text) < 20:
+                                                    time.sleep(1)
+                                                    page.reload()
+                                                    time.sleep(2)
+                                                    continue
+                                                else:
+                                                    break
                                         except:
                                             print("⛔ Нет информации")
                                             current_url = page.url
