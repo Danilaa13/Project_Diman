@@ -234,8 +234,8 @@ def create_browser_with_settings(p):
                 '--lang=ru-RU',
                 '--accept-lang=ru-RU,ru;q=0.9',
 
-                # f"--disable-extensions-except=proxi_extension",
-                # f"--load-extension=proxi_extension"
+                f"--disable-extensions-except=proxi_extension",
+                f"--load-extension=proxi_extension"
             ]
         )
 
@@ -708,7 +708,9 @@ def main():
                                             page.wait_for_selector('div[class="table-item stack"]', timeout=10000)
                                             products_text = page.query_selector_all('div[class="table-item stack"]')
                                         except:
-                                            print("Нет информации")
+                                            print("⛔ Нет информации")
+                                            current_url = page.url
+                                            print(f"Текущий URL: {current_url}")
                                             time.sleep(20)
                                             continue
                                         
@@ -943,6 +945,7 @@ def main():
                 good_avtoriz = 0
                 while True:
                     try:
+                        response = requests.get("http://91.77.161.132:13200/proxy/WY8Iktuw/", timeout=10)
                         browser = create_browser_with_settings(p)
                         context = browser.new_context(user_agent=random.choice(USER_AGENTS))
                         page = context.new_page()
