@@ -450,7 +450,7 @@ def main():
                         print(f"Ошибка выбора продукта: {e}")
                         # Пробуем альтернативный способ
                         try:
-                            page.wait_for_selector('select[name="selectedBrandCode"]', timeout=10000)
+                            page.wait_for_selector('select[name="selectedBrandCode"]', state='visible', timeout=10000)
                             select_element = page.query_selector('select[name="selectedBrandCode"]')
                             select_element.select_option(index=product_number + 1)  # +1 потому что первый option пустой
                             print(f"Выбрал продукт через select_option")
@@ -467,7 +467,7 @@ def main():
                     
                     # Выбираем коммерческую поставку
                     try:
-                        page.wait_for_selector('a[id="id_revenue_button"]', timeout=10000)
+                        page.wait_for_selector('a[id="id_revenue_button"]', state='visible', timeout=10000)
                         commercial_order_btn = page.query_selector('a[id="id_revenue_button"]')
                         if commercial_order_btn and commercial_order_btn.is_visible():
                             commercial_order_btn.click()
@@ -486,7 +486,7 @@ def main():
                     
                     # Выбираем кривизну
                     try:
-                        page.wait_for_selector('div[id="id_revenue_basecurves"]', timeout=10000)
+                        page.wait_for_selector('div[id="id_revenue_basecurves"]', state='visible', timeout=10000)
                         base_curves_div = page.query_selector('div[id="id_revenue_basecurves"]')
                         if base_curves_div and base_curves_div.is_visible():
                             curves_btns = base_curves_div.query_selector_all('a')
@@ -524,7 +524,7 @@ def main():
                                 cylinder_presence = True
                                 
                                 # Выбираем цилиндр
-                                page.wait_for_selector('select[id="id_cylinder_select"]', timeout=10000)
+                                page.wait_for_selector('select[id="id_cylinder_select"]', state='visible', timeout=10000)
                                 cylinders_select = page.query_selector('select[id="id_cylinder_select"]')
                                 cylinder = cylinders_select.query_selector_all('option')[1:]
                                 if cylinders_select:
@@ -541,7 +541,7 @@ def main():
                                         cylinder_number = 0
                                 
                                 # Выбираем ось
-                                page.wait_for_selector('select[id="id_axis_select"]', timeout=10000)
+                                page.wait_for_selector('select[id="id_axis_select"]', state='visible', timeout=10000)
                                 axis_select = page.query_selector('select[id="id_axis_select"]')
                                 axis = axis_select.query_selector_all('option')[1:]
                                 if axis_select:
