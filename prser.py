@@ -234,8 +234,8 @@ def create_browser_with_settings(p):
                 '--lang=ru-RU',
                 '--accept-lang=ru-RU,ru;q=0.9',
 
-                f"--disable-extensions-except=proxi_extension",
-                f"--load-extension=proxi_extension"
+                # f"--disable-extensions-except=proxi_extension",
+                # f"--load-extension=proxi_extension"
             ]
         )
 
@@ -458,6 +458,8 @@ def main():
                         except Exception as e2:
                             print(f"Альтернативный способ тоже не сработал: {e2}")
                             exept_count += 1
+                            if 'startExternal.xo' in page.url:
+                                exept_count = 3
                             continue
                     
                     # Проверяем, активировалась ли кнопка коммерческой поставки
@@ -478,6 +480,8 @@ def main():
                     except Exception as e:
                         print(f"Ошибка выбора поставки: {e}")
                         exept_count += 1
+                        if 'startExternal.xo' in page.url:
+                            exept_count = 3
                         continue
                     
                     # Выбираем кривизну
@@ -504,6 +508,8 @@ def main():
                     except Exception as e:
                         print(f"Ошибка выбора кривизны: {e}")
                         exept_count += 1
+                        if 'startExternal.xo' in page.url:
+                            exept_count = 3
                         continue
                     
                     # Проверяем есть ли цилиндры и оси
@@ -800,6 +806,8 @@ def main():
                                             break
                                     
                                     if count_exept_order == 3:
+                                        current_url = page.url
+                                        print(f"Текущий URL: {current_url}")
                                         raise ValueError('Столкнулись с непрогрузом страницы. Делаем перезагрузку.')
 
                                     current_url = page.url
@@ -905,6 +913,8 @@ def main():
                         product_change = "Старый"
 
                 if exept_count == 3:
+                    current_url = page.url
+                    print(f"Текущий URL: {current_url}")
                     raise ValueError('Ошибка при выборе параметров. Скорее всего вылетело.')
                     
                 print(f"Продукт {product_number}.{product_change}")
@@ -956,7 +966,7 @@ def main():
                 good_avtoriz = 0
                 while True:
                     try:
-                        response = requests.get("http://91.77.161.132:13200/proxy/WY8Iktuw/", timeout=10)
+                        # response = requests.get("http://91.77.161.132:13200/proxy/WY8Iktuw/", timeout=10)
                         browser = create_browser_with_settings(p)
                         # Создаем контекст и страницу
                         # Создаем контекст, имитирующий локальную машину
