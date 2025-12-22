@@ -361,7 +361,8 @@ def main():
         
         home_page = page.url
         
-
+        if is_element_by_id(page, 'cartCount'):
+            empty_cart_safe(page, url_cart)
         
         while True:
             current_url = page.url
@@ -458,6 +459,7 @@ def main():
                         except Exception as e2:
                             print(f"Альтернативный способ тоже не сработал: {e2}")
                             exept_count += 1
+                            page.reload()
                             if 'startExternal.xo' in page.url:
                                 exept_count = 3
                             continue
@@ -480,6 +482,7 @@ def main():
                     except Exception as e:
                         print(f"Ошибка выбора поставки: {e}")
                         exept_count += 1
+                        page.reload()
                         if 'startExternal.xo' in page.url:
                             exept_count = 3
                         continue
@@ -508,6 +511,7 @@ def main():
                     except Exception as e:
                         print(f"Ошибка выбора кривизны: {e}")
                         exept_count += 1
+                        page.reload()
                         if 'startExternal.xo' in page.url:
                             exept_count = 3
                         continue
