@@ -726,6 +726,9 @@ def main():
                                                     break
                                         except:
                                             print("⛔ Нет информации")
+                                            if 'startExternal.xo' in page.url:
+                                                count_exept_order = 3
+                                                break
                                             current_url = page.url
                                             print(f"Текущий URL: {current_url}")
                                             time.sleep(20)
