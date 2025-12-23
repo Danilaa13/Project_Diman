@@ -375,6 +375,9 @@ def main():
                     empty_cart_safe(page, url_cart)
                 
                 # ПЕРЕХОД НА СТРАНИЦУ ПРОДУКТА - ОПТИМИЗИРУЕМ
+                page.reload()
+                print("ПЕРЕЗАГРУЗИЛИСЬ")
+                time.sleep(1)
                 while True:
                     try:
                         print("➡️ Переходим на страницу продукта...")
@@ -505,7 +508,7 @@ def main():
                     
                     # Выбираем кривизну
                     try:
-                        page.wait_for_selector('div[id="id_revenue_basecurves"]', state='visible', timeout=5000)
+                        page.wait_for_selector('div[id="id_revenue_basecurves"]', state='visible', timeout=10000)
                         base_curves_div = page.query_selector('div[id="id_revenue_basecurves"]')
                         if base_curves_div and base_curves_div.is_visible():
                             curves_btns = base_curves_div.query_selector_all('a')
@@ -526,6 +529,10 @@ def main():
                             continue
                     except Exception as e:
                         print(f"Ошибка выбора кривизны: {e}")
+                        page.reload()
+                        print('ПЕРЕЗАГРУЗИЛИСЬ')
+                        time.sleep(1)
+
                         exept_count += 1
                         page.reload()
                         if 'startExternal.xo' in page.url:
@@ -842,9 +849,9 @@ def main():
                                         # Если нужно вернуть к спискам
                                         unique_lists = [list(t) for t in unique_tuples]
 
-                                        for lines in unique_lists:
+                                        for num, lines in enumerate(unique_lists):
                                             worksheets[adres].append(lines)
-                                            print(lines)
+                                            print(num, lines)
                                         
                                         adres += 1
                                         if adres == len(addresses):
