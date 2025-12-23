@@ -375,6 +375,7 @@ def main():
                     empty_cart_safe(page, url_cart)
                 
                 # ПЕРЕХОД НА СТРАНИЦУ ПРОДУКТА - ОПТИМИЗИРУЕМ
+                print('.....ПЕРЕЗАГРУЖАЕМСЯ.....')
                 page.reload()
                 print("ПЕРЕЗАГРУЗИЛИСЬ")
                 time.sleep(1)
