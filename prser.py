@@ -375,12 +375,23 @@ def main():
                     empty_cart_safe(page, url_cart)
                 # Переходим на страницу продуктов
                 try:
-                    print("Переходим на страницу продукта.")
+                    print("➡️ Переходим на страницу продукта (серверная версия)...")
+    
+                    # 1. УВЕЛИЧИТЬ таймаут для сервера
+                    page.set_default_navigation_timeout(120000)  # 180 секунд
+                    
+                    # 2. Добавить wait_until='domcontentloaded' (быстрее чем 'load')
                     response = page.goto(
                         url_prod,
-                        timeout=120000  
-                    )  # Таймаут 120 секунд (2 минуты)
-                    print(f"Страница загрузилась, статус: {response.ok}")
+                        timeout=120000,  # 180 секунд для сервера
+                        wait_until='domcontentloaded'  # Не ждать все ресурсы
+                    )
+                    
+                    # 3. Дополнительное ожидание для AJAX
+                    page.wait_for_load_state('networkidle', timeout=30000)
+                    
+                    print(f"✓ Страница загрузилась. Статус: {response.status if response else 'NO RESPONSE'}")
+                    print(f"  URL: {page.url}")
                 except Exception as e:
                     print(f"Критическая ошибка при загрузке: {e}")
 
