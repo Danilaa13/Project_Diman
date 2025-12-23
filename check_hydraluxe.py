@@ -57,13 +57,17 @@ def chek_hydraluxe(file_path: str):
     index = 0
     len_hydra_arr = max(len(hydra_30_arr), len(hydra_90_arr), len(hydra_180_arr))
 
-    while index < len_hydra_arr:
+    while index < len_hydra_arr - 1:
+        if index == len(hydra_90_arr):
+            break
         if hydra_90_arr[index][2] == 0:
             for line in hydra_30_arr:
                 if (line[2] >= 3) and (hydra_90_arr[index][1] == line[1]):
                     hydra_90_arr[index][2] = line[2] // 3
                     break
         count = 0
+        if index == len(hydra_180_arr):
+            break
         if hydra_180_arr[index][2] == 0:
             for i, line2 in enumerate(hydra_30_arr):
                 if (line2[2] >= 6) and (hydra_180_arr[index][1] == line2[1]):
