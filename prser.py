@@ -758,6 +758,8 @@ def main():
                                             print(f"Текущий URL: {current_url}")
                                             time.sleep(5)
                                             continue
+
+                                        arr_check_dublikat = []
                                         
                                         if products_text:
                                             for num, text_in in enumerate(products_text):
@@ -821,12 +823,18 @@ def main():
                                                 if adres < len(address_names):
                                                     lines.append(address_names[adres])
                                                     
-                                                # Добавляем в соответствующую таблицу
-                                                worksheets[adres].append(lines)
-                                                    
+                                                
+                                                
+                                                if lines in arr_check_dublikat:
+                                                    continue
+                                                arr_check_dublikat.append(lines)
                                                 print(f"Адрес {adres}, строка {num}: {lines}")
                                         else:
                                             print("Не найдены элементы с информацией о продуктах")
+                                            
+                                        #   Добавляем в соответствующую таблицу
+                                        for lines in arr_check_dublikat:
+                                            worksheets[adres].append(lines)
                                         
                                         adres += 1
                                         if adres == len(addresses):
