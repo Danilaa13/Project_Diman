@@ -26,6 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -136,3 +137,14 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+
+# Игнорировать конкретный файл peremen.py в корне
+/peremen.py
+
+# Или игнорировать ВЕЗДЕ (в любой папке)
+peremen.py
+
+# Дополнительно для безопасности:
+/peremen.py*
+/peremen*.py

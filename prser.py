@@ -272,8 +272,8 @@ def main():
 
     # workbooks = [wb, wb2, wb3, wb4, wb5, wb6]
     # worksheets = [ws, ws2, ws3, ws4, ws5, ws6]
-    workbooks = [wb,]
-    worksheets = [ws,]
+    workbooks = [wb2,]
+    worksheets = [ws2,]
     
     # Настройки
     username = os.getenv("LOGIN")
@@ -286,8 +286,8 @@ def main():
     
     # Адреса и названия линз
     addresses = {
-        0: 'RU14102',  # Москва
-        # 0: 'RU39813',  # Ростов
+        # 0: 'RU14102',  # Москва
+        0: 'RU39813',  # Ростов
         # 2: 'RU51798',  # Казань
         # 3: 'RU51799',  # СПБ
         # 4: 'RU51797',  # Новосибирск
@@ -367,16 +367,6 @@ def main():
         while True:
             current_url = page.url
             print(f"Текущий URL: {current_url}")
-
-            # Сравнить с нужным адресом URL
-            if current_url == start_url:
-                print("Мы на странице авторизации.")
-                time.sleep(10)
-
-                autorization(page, url, username, password)
-                time.sleep(2)
-                print("Авторизация прошла успешно")
-
             
             
             try:
@@ -385,6 +375,7 @@ def main():
                     empty_cart_safe(page, url_cart)
                 # Переходим на страницу продуктов
                 try:
+                    print("Переходим на страницу продукта.")
                     response = page.goto(
                         url_prod,
                         timeout=120000  
@@ -393,12 +384,10 @@ def main():
                 except Exception as e:
                     print(f"Критическая ошибка при загрузке: {e}")
 
-                time.sleep(1)
                 print("Мы на странице оформления заказа")
                 
                 # Открываем выпадающий список
-                page.click('span[role="presentation"]')
-                time.sleep(1)
+                page.click('span[role="presentation"]')  
                 
                 # Получаем список продуктов как элементы
                 product_elements = get_product_selection(page)
@@ -423,13 +412,7 @@ def main():
                     # Сравнить с нужным адресом URL
                     current_url = page.url
                     print(f"Текущий URL: {current_url}")
-                    if current_url == start_url:
-                        print("Мы на странице авторизации.")
-                        time.sleep(10)
-
-                        autorization(page, url, username, password)
-                        time.sleep(2)
-                        print("Авторизация прошла успешно")
+                    
                     # Кликаем на продукт (используем JavaScript для надежности)
                     try:
                         print(f"Выбираю продукт {product_number}...")
@@ -445,7 +428,7 @@ def main():
                                 select_element.select_option(index=product_number + 1)
                             
                             print(f"✓ Выбрал продукт через select_option с навигацией")
-                            time.sleep(2)
+                            
                             
                         except Exception as e1:
                             print(f"Способ 1 не сработал: {e1}")
@@ -460,7 +443,7 @@ def main():
                                             document.querySelector('select[name="selectedBrandCode"]').dispatchEvent(new Event('change', {{ bubbles: true }}));
                                         """)
                                     print(f"✓ Выбрал продукт через JavaScript с навигацией")
-                                    time.sleep(2)
+                                    
                                 else:
                                     raise ValueError("Нет value у элемента")
                                     
@@ -472,7 +455,7 @@ def main():
                                     with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
                                         product_elements[product_number].click()
                                     print(f"✓ Выбрал продукт через клик с навигацией")
-                                    time.sleep(2)
+                                    
                                 except Exception as e3:
                                     print(f"Все способы не сработали: {e3}")
                                     exept_count += 1
@@ -487,7 +470,7 @@ def main():
                         continue
                     
                     # Проверяем, активировалась ли кнопка коммерческой поставки
-                    time.sleep(1)
+                    
                     
                     # Выбираем коммерческую поставку
                     try:
@@ -496,7 +479,7 @@ def main():
                         if commercial_order_btn and commercial_order_btn.is_visible():
                             commercial_order_btn.click()
                             print("Выбрал поставку")
-                            time.sleep(1)
+                            
                         else:
                             print("Кнопка коммерческой поставки не найдена")
                             product_number += 1
@@ -604,7 +587,7 @@ def main():
                                     if addidation_number < len(addidation_btns):
                                         addidation_btns[addidation_number].click()
                                         print(f"Выбрал аддидацию {addidation_number}")
-                                        time.sleep(1)
+                                        
                                     else:
                                         print(f"Аддидация {addidation_number} не найдена")
                                         addidation_number = 0
@@ -631,15 +614,15 @@ def main():
                                     package_volume = blisters[blister_number].text_content().strip()
                                     blisters[blister_number].click()
                                     print(f"Выбрал блистер {blister_number}: {package_volume}")
-                                    time.sleep(1)
+                                    
                                     
                                     set_parametr_product(page, test_quantity)
                                     print("Выбрал все варианты")
-                                    time.sleep(1)
+                                    
                                     
                                     add_to_cart(page)
                                     print("Добавил в корзину")
-                                    time.sleep(1)
+                                   
                                     
                                     # Обрабатываем заказы для всех адресов
                                     adres = 0
@@ -746,7 +729,7 @@ def main():
                                                 if product_number == 0 and len(products_text) < 50 and ('proceedToCheckout.xo' in page.url):
                                                     time.sleep(1)
                                                     page.reload()
-                                                    time.sleep(2)
+                                                    time.sleep(1)
                                                     continue
                                                 else:
                                                     break
@@ -757,7 +740,7 @@ def main():
                                                 break
                                             current_url = page.url
                                             print(f"Текущий URL: {current_url}")
-                                            time.sleep(20)
+                                            time.sleep(5)
                                             continue
                                         
                                         if products_text:
@@ -816,8 +799,7 @@ def main():
                                                     
                                                 # Добавляем адрес
                                                 address_names = [
-                                                        'Шолохова', 'Островитянова', 'ул Восстания',
-                                                        'пр-кт Обуховской Обороны', 'ул Гоголя', 'ул Норильская'
+                                                        'Шолохова', 
                                                 ]
                                                     
                                                 if adres < len(address_names):
@@ -962,7 +944,7 @@ def main():
                     
                     # Сохраняем файлы
                     # filenames = ['moscow.xlsx', 'rostov.xlsx', 'kazan.xlsx', 'spb.xlsx', 'novosib.xlsx', 'ekb.xlsx']
-                    filenames = ['moscow.xlsx',]
+                    filenames = ['rostov.xlsx',]
                     for wb_file, filename in zip(workbooks, filenames):
                         wb_file.save(filename)
                     
@@ -1051,7 +1033,7 @@ def main():
     
     # Обработка файлов
     # filenames = ['moscow.xlsx', 'rostov.xlsx', 'kazan.xlsx', 'spb.xlsx', 'novosib.xlsx', 'ekb.xlsx']
-    filenames = ['moscow.xlsx',]
+    filenames = ['rostov.xlsx',]
     for filename in filenames:
         red_xl(filename)
         processed_filename = filename.replace('.xlsx', '_ostatki.xlsx')
