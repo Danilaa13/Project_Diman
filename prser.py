@@ -373,29 +373,47 @@ def main():
                 # Проверяем и очищаем корзину если нужно
                 if is_element_by_id(page, 'cartCount'):
                     empty_cart_safe(page, url_cart)
-                # Переходим на страницу продуктов
+                
+                # ПЕРЕХОД НА СТРАНИЦУ ПРОДУКТА - ОПТИМИЗИРУЕМ
                 try:
-                    print("➡️ Переходим на страницу продукта (серверная версия)...")
-    
-                    # 1. УВЕЛИЧИТЬ таймаут для сервера
-                    page.set_default_navigation_timeout(120000)  # 180 секунд
+                    print("➡️ Переходим на страницу продукта...")
                     
-                    # 2. Добавить wait_until='domcontentloaded' (быстрее чем 'load')
+                    # 1. УМЕНЬШАЕМ таймаут ДРАМАТИЧЕСКИ
+                    page.set_default_navigation_timeout(30000)  # 30 секунд вместо 180
+                    
+                    # 2. Только ОДНА попытка навигации
                     response = page.goto(
                         url_prod,
-                        timeout=120000,  # 180 секунд для сервера
-                        wait_until='domcontentloaded'  # Не ждать все ресурсы
+                        timeout=15000,  # 15 секунд максимум!
+                        wait_until='domcontentloaded'  # Самый быстрый
                     )
                     
-                    # 3. Дополнительное ожидание для AJAX
-                    page.wait_for_load_state('networkidle', timeout=30000)
+                    # 3. УБИРАЕМ лишнее ожидание networkidle - это ДОЛГО!
+                    # page.wait_for_load_state('networkidle', timeout=30000) <- УДАЛИТЬ
                     
-                    print(f"✓ Страница загрузилась. Статус: {response.status if response else 'NO RESPONSE'}")
-                    print(f"  URL: {page.url}")
+                    # 4. Быстрая проверка вместо долгого ожидания
+                    page.wait_for_timeout(1000)  # Всего 1 секунда для стабилизации
+                    
+                    print(f"✅ Страница загружена за 15 секунд. URL: {page.url}")
+                    
                 except Exception as e:
-                    print(f"Критическая ошибка при загрузке: {e}")
-
+                    print(f"⚠ Не дождались полной загрузки за 15 сек: {e}")
+                    print("→ Но продолжаем выполнение...")
+                    
+                    # Проверяем, может страница уже частично загружена
+                    try:
+                        # Быстрая проверка через JS
+                        has_content = page.evaluate("document.body.innerHTML.length > 100")
+                        if has_content:
+                            print("✓ Контент есть, продолжаем")
+                        else:
+                            print("⚠ Мало контента, но продолжаем")
+                    except:
+                        pass
+                
                 print("Мы на странице оформления заказа")
+
+               
                 
                 # Открываем выпадающий список
                 page.click('span[role="presentation"]')  
@@ -430,11 +448,11 @@ def main():
                         
                         # Пробуем через select_option с expect_navigation (ПРЯМО СНАЧАЛА)
                         try:
-                            page.wait_for_selector('select[name="selectedBrandCode"]', state='visible', timeout=10000)
+                            page.wait_for_selector('select[name="selectedBrandCode"]', state='visible', timeout=5000)
                             select_element = page.query_selector('select[name="selectedBrandCode"]')
                             
                             # ВАЖНО: Если ожидаем навигацию - она должна охватывать ВСЕ способы выбора
-                            with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
+                            with page.expect_navigation(timeout=5000, wait_until='domcontentloaded'):
                                 # Способ 1: select_option (основной)
                                 select_element.select_option(index=product_number + 1)
                             
@@ -448,7 +466,7 @@ def main():
                             try:
                                 product_value = product_elements[product_number].get_attribute('value')
                                 if product_value:
-                                    with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
+                                    with page.expect_navigation(timeout=5000, wait_until='domcontentloaded'):
                                         page.evaluate(f"""
                                             document.querySelector('select[name="selectedBrandCode"]').value = '{product_value}';
                                             document.querySelector('select[name="selectedBrandCode"]').dispatchEvent(new Event('change', {{ bubbles: true }}));
@@ -463,7 +481,7 @@ def main():
                                 
                                 # Способ 3: Прямой клик
                                 try:
-                                    with page.expect_navigation(timeout=15000, wait_until='domcontentloaded'):
+                                    with page.expect_navigation(timeout=5000, wait_until='domcontentloaded'):
                                         product_elements[product_number].click()
                                     print(f"✓ Выбрал продукт через клик с навигацией")
                                     
@@ -485,7 +503,7 @@ def main():
                     
                     # Выбираем коммерческую поставку
                     try:
-                        page.wait_for_selector('a[id="id_revenue_button"]', state='visible', timeout=10000)
+                        page.wait_for_selector('a[id="id_revenue_button"]', state='visible', timeout=5000)
                         commercial_order_btn = page.query_selector('a[id="id_revenue_button"]')
                         if commercial_order_btn and commercial_order_btn.is_visible():
                             commercial_order_btn.click()
@@ -505,7 +523,7 @@ def main():
                     
                     # Выбираем кривизну
                     try:
-                        page.wait_for_selector('div[id="id_revenue_basecurves"]', state='visible', timeout=10000)
+                        page.wait_for_selector('div[id="id_revenue_basecurves"]', state='visible', timeout=5000)
                         base_curves_div = page.query_selector('div[id="id_revenue_basecurves"]')
                         if base_curves_div and base_curves_div.is_visible():
                             curves_btns = base_curves_div.query_selector_all('a')
@@ -544,7 +562,7 @@ def main():
                                 cylinder_presence = True
                                 
                                 # Выбираем цилиндр
-                                page.wait_for_selector('select[id="id_cylinder_select"]', state='visible', timeout=10000)
+                                page.wait_for_selector('select[id="id_cylinder_select"]', state='visible', timeout=5000)
                                 cylinders_select = page.query_selector('select[id="id_cylinder_select"]')
                                 cylinder = cylinders_select.query_selector_all('option')[1:]
                                 if cylinders_select:
@@ -561,7 +579,7 @@ def main():
                                         cylinder_number = 0
                                 
                                 # Выбираем ось
-                                page.wait_for_selector('select[id="id_axis_select"]', state='visible', timeout=10000)
+                                page.wait_for_selector('select[id="id_axis_select"]', state='visible', timeout=5000)
                                 axis_select = page.query_selector('select[id="id_axis_select"]')
                                 axis = axis_select.query_selector_all('option')[1:]
                                 if axis_select:
@@ -590,7 +608,7 @@ def main():
                                 print("аддидация есть")
                                 addid_presence = True
                                 
-                                page.wait_for_selector('div[id="id_add_power_buttons"]', timeout=10000)
+                                page.wait_for_selector('div[id="id_add_power_buttons"]', timeout=5000)
                                 add_power_buttons = page.query_selector('div[id="id_add_power_buttons"]')
                                 if add_power_buttons:
                                     addidation_btns = add_power_buttons.query_selector_all('a')
@@ -615,7 +633,7 @@ def main():
                         if style and 'display: block' in style:
                             print("блистеры есть")
                             
-                            page.wait_for_selector('div[id="id_single_uom_buttons"]', timeout=10000)
+                            page.wait_for_selector('div[id="id_single_uom_buttons"]', timeout=5000)
                             blister_div = page.query_selector('div[id="id_single_uom_buttons"]')
                             if blister_div:
                                 blisters = blister_div.query_selector_all('a')
@@ -647,7 +665,7 @@ def main():
 
                                         try:
                                             # Ждем навигации, а не просто делаем sleep
-                                            response = page.goto(url_order, wait_until="networkidle", timeout=30000)
+                                            response = page.goto(url_order, wait_until="networkidle", timeout=10000)
                                             if response and response.ok:
                                                 print(f"Успешно перешли на страницу выбора адреса. URL: {page.url}")
                                             else:
@@ -675,7 +693,7 @@ def main():
                                         
                                         try:
                                             # Ищем элемент с адресом
-                                            page.wait_for_selector(f'//label[contains(text(), "{addresses[adres]}")]', timeout=10000)
+                                            page.wait_for_selector(f'//label[contains(text(), "{addresses[adres]}")]', timeout=5000)
                                             address_label = page.query_selector(f'//label[contains(text(), "{addresses[adres]}")]')
                                             if address_label:
                                                 address_label.click()
@@ -691,7 +709,7 @@ def main():
                                         
                                         # Первая кнопка "Продолжить"
                                         try:
-                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=5000)
                                             continue_btns = page.query_selector_all('a[title="Продолжить"]')
                                             if continue_btns:
                                                 continue_btns[0].click()
@@ -708,7 +726,7 @@ def main():
                                         # Вторая кнопка "Продолжить"
                                         try:
                                             time.sleep(1)
-                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=5000)
                                             continue_btns = page.query_selector_all('a[title="Продолжить"]')
                                             if continue_btns:
                                                 continue_btns[0].click()
@@ -723,7 +741,7 @@ def main():
                                         # Третья кнопка "Продолжить" (если есть)
                                         try:
                                             time.sleep(1)
-                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=5000)
                                             continue_btns = page.query_selector_all('a[title="Продолжить"]')
                                             if continue_btns:
                                                 continue_btns[0].click()
@@ -735,7 +753,7 @@ def main():
                                         
                                         try:
                                             while True:
-                                                page.wait_for_selector('div[class="table-item stack"]', timeout=10000)
+                                                page.wait_for_selector('div[class="table-item stack"]', timeout=5000)
                                                 products_text = page.query_selector_all('div[class="table-item stack"]')
                                                 if product_number == 0 and len(products_text) < 50 and ('proceedToCheckout.xo' in page.url):
                                                     time.sleep(1)
