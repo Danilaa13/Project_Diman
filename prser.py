@@ -828,12 +828,12 @@ def main():
                                                 if lines in arr_check_dublikat:
                                                     continue
                                                 arr_check_dublikat.append(lines)
-                                                print(f"Адрес {adres}, строка {num}: {lines}")
+                                                # print(f"Адрес {adres}, строка {num}: {lines}")
                                         else:
                                             print("Не найдены элементы с информацией о продуктах")
 
                                         #   Добавляем в соответствующую таблицу
-                                        
+
                                         tupled = [tuple(lst) for lst in arr_check_dublikat]
 
                                         # Удаляем дубликаты (сохраняем порядок)
@@ -844,6 +844,7 @@ def main():
 
                                         for lines in unique_lists:
                                             worksheets[adres].append(lines)
+                                            print(lines)
                                         
                                         adres += 1
                                         if adres == len(addresses):
