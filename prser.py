@@ -188,7 +188,7 @@ def is_element_by_id(page, element_id):
 def create_browser_with_settings(p):
     """Создает браузер со всеми настройками для сервера"""
     return p.chromium.launch(
-            headless=False,  # Видимый браузер
+            headless=True,  # Видимый браузер
             args=[
                 # === КРИТИЧЕСКИ ВАЖНЫЕ ДЛЯ LINUX ===
                 '--no-sandbox',                    # Обязательно для контейнеров/серверов
@@ -375,45 +375,27 @@ def main():
                     empty_cart_safe(page, url_cart)
                 
                 # ПЕРЕХОД НА СТРАНИЦУ ПРОДУКТА - ОПТИМИЗИРУЕМ
-                try:
-                    print("➡️ Переходим на страницу продукта...")
-                    
-                    # 1. УМЕНЬШАЕМ таймаут ДРАМАТИЧЕСКИ
-                    page.set_default_navigation_timeout(10000)  # 30 секунд вместо 180
-                    
-                    # 2. Только ОДНА попытка навигации
-                    response = page.goto(
-                        url_prod,
-                        timeout=5000,  # 15 секунд максимум!
-                        wait_until='domcontentloaded'  # Самый быстрый
-                    )
-                    
-                    # 3. УБИРАЕМ лишнее ожидание networkidle - это ДОЛГО!
-                    # page.wait_for_load_state('networkidle', timeout=30000) <- УДАЛИТЬ
-                    
-                    # 4. Быстрая проверка вместо долгого ожидания
-                    page.wait_for_timeout(1000)  # Всего 1 секунда для стабилизации
-                    
-                    print(f"✅ Страница загружена за 15 секунд. URL: {page.url}")
-                    
-                except Exception as e:
-                    print(f"⚠ Не дождались полной загрузки за 15 сек: {e}")
-                    print("→ Но продолжаем выполнение...")
-                    
-                    # Проверяем, может страница уже частично загружена
+                while True:
                     try:
-                        # Быстрая проверка через JS
-                        has_content = page.evaluate("document.body.innerHTML.length > 100")
-                        if has_content:
-                            print("✓ Контент есть, продолжаем")
-                        else:
-                            print("⚠ Мало контента, но продолжаем")
-                    except:
-                        pass
-                
-                print("Мы на странице оформления заказа")
-
-               
+                        print("➡️ Переходим на страницу продукта...")
+                        
+                    
+                        # 2. Только ОДНА попытка навигации
+                        response = page.goto(url_prod)
+                        if 'touchProductOrder.xo' in page.url:
+                            print("✅ Мы на странице оформления заказа")
+                        time.sleep(1)
+                        break
+                          
+                        
+                    except Exception as e:
+                        print(f"⚠ Не дождались загрузки ")
+                        print("→ Но продолжаем выполнение...")
+                        
+                        page.reload()
+                        time.sleep(1)
+                        continue
+                        
                 
                 # Открываем выпадающий список
                 page.click('span[role="presentation"]')  
