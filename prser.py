@@ -831,9 +831,18 @@ def main():
                                                 print(f"Адрес {adres}, строка {num}: {lines}")
                                         else:
                                             print("Не найдены элементы с информацией о продуктах")
-                                            
+
                                         #   Добавляем в соответствующую таблицу
-                                        for lines in arr_check_dublikat:
+                                        
+                                        tupled = [tuple(lst) for lst in arr_check_dublikat]
+
+                                        # Удаляем дубликаты (сохраняем порядок)
+                                        unique_tuples = list(dict.fromkeys(tupled))
+
+                                        # Если нужно вернуть к спискам
+                                        unique_lists = [list(t) for t in unique_tuples]
+
+                                        for lines in unique_lists:
                                             worksheets[adres].append(lines)
                                         
                                         adres += 1
@@ -841,8 +850,6 @@ def main():
                                             break
                                     
                                     if count_exept_order == 3:
-                                        current_url = page.url
-                                        print(f"Текущий URL: {current_url}")
                                         raise ValueError('Столкнулись с непрогрузом страницы. Делаем перезагрузку.')
 
                                     current_url = page.url
