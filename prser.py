@@ -958,8 +958,6 @@ def main():
                         product_change = "Старый"
 
                 if exept_count == 3:
-                    current_url = page.url
-                    print(f"Текущий URL: {current_url}")
                     raise ValueError('Ошибка при выборе параметров. Скорее всего вылетело.')
                     
                 print(f"Продукт {product_number}.{product_change}")
@@ -1061,9 +1059,9 @@ def main():
                     time.sleep(1)
                 print("Мы на главной странице")
 
-                if is_element_by_id(page, 'cartCount'):
-                    empty_cart_safe(page, url_cart)
-                    print("Очистили корзину")
+                
+                empty_cart_safe(page, url_cart)
+                print("🗑 Очистили корзину ПОСЛЕ ПОВТОРНОГО ВХОДА")
                 continue
         
         time.sleep(5)
