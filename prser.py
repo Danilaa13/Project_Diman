@@ -176,6 +176,54 @@ def is_element_present_by_id(page, element_id, styles_to_check=None):
         return False
 
 
+
+def goto_with_timeout(page, url, timeout=3000):
+    """Загрузка с остановкой если долго"""
+    try:
+        # Запускаем навигацию
+        response = page.goto(url, timeout=timeout)
+        return response
+    except Exception as e:
+        print(f"Таймаут {timeout}мс истек, останавливаем загрузку...")
+        
+        # Останавливаем загрузку через JavaScript
+        page.evaluate("""
+            // 1. Останавливаем все загрузки
+            window.stop();
+            
+            // 2. Очищаем таймеры и интервалы
+            const highestId = window.setTimeout(() => {}, 0);
+            for (let i = 0; i < highestId; i++) {
+                window.clearTimeout(i);
+                window.clearInterval(i);
+            }
+            
+            // 3. Отменяем все запросы fetch
+            if (window.fetch) {
+                const originalFetch = window.fetch;
+                window.fetch = function() {
+                    return Promise.reject(new Error('Fetch cancelled'));
+                };
+            }
+            
+            // 4. Останавливаем XHR запросы
+            if (window.XMLHttpRequest) {
+                const originalXHR = window.XMLHttpRequest.prototype.open;
+                window.XMLHttpRequest.prototype.open = function() {
+                    this.addEventListener('loadstart', function() {
+                        this.abort();
+                    });
+                    originalXHR.apply(this, arguments);
+                };
+            }
+        """)
+        
+        # Ждем немного и пробуем снова
+        page.wait_for_timeout(1000)
+        return None
+
+
+
 def is_element_by_id(page, element_id):
     """Проверка наличия элемента по ID"""
     try:
@@ -375,17 +423,14 @@ def main():
                     empty_cart_safe(page, url_cart)
                 
                 # ПЕРЕХОД НА СТРАНИЦУ ПРОДУКТА - ОПТИМИЗИРУЕМ
-                print('.....ПЕРЕЗАГРУЖАЕМСЯ.....')
-                page.reload()
-                print("ПЕРЕЗАГРУЗИЛИСЬ")
-                time.sleep(1)
+                
                 while True:
                     try:
                         print("➡️ Переходим на страницу продукта...")
                         
                     
                         # 2. Только ОДНА попытка навигации
-                        response = page.goto(url_prod)
+                        response = goto_with_timeout(page, url_prod, timeout=3000)
                         if 'touchProductOrder.xo' in page.url:
                             print("✅ Мы на странице оформления заказа")
                         time.sleep(1)
