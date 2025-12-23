@@ -709,7 +709,7 @@ def main():
                                         
                                         # Первая кнопка "Продолжить"
                                         try:
-                                            page.wait_for_selector('a[title="Продолжить"]', timeout=5000)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
                                             continue_btns = page.query_selector_all('a[title="Продолжить"]')
                                             if continue_btns:
                                                 continue_btns[0].click()
@@ -726,7 +726,7 @@ def main():
                                         # Вторая кнопка "Продолжить"
                                         try:
                                             time.sleep(1)
-                                            page.wait_for_selector('a[title="Продолжить"]', timeout=5000)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
                                             continue_btns = page.query_selector_all('a[title="Продолжить"]')
                                             if continue_btns:
                                                 continue_btns[0].click()
@@ -741,13 +741,18 @@ def main():
                                         # Третья кнопка "Продолжить" (если есть)
                                         try:
                                             time.sleep(1)
-                                            page.wait_for_selector('a[title="Продолжить"]', timeout=5000)
+                                            page.wait_for_selector('a[title="Продолжить"]', timeout=10000)
                                             continue_btns = page.query_selector_all('a[title="Продолжить"]')
                                             if continue_btns:
                                                 continue_btns[0].click()
                                                 print("нажал кнопку продолжить (этап 3)")
                                         except:
                                             print("Третьей кнопки продолжить не было")
+                                            current_url = page.url
+                                            print(f"Текущий URL: {current_url}")
+                                            if 'startExternal.xo' in page.url:
+                                                count_exept_order = 3
+                                                break
                                         
                                         print('собираем информацию')
                                         
@@ -1055,6 +1060,10 @@ def main():
                 while page.url != home_page:
                     time.sleep(1)
                 print("Мы на главной странице")
+
+                if is_element_by_id(page, 'cartCount'):
+                    empty_cart_safe(page, url_cart)
+                    print("Очистили корзину")
                 continue
         
         time.sleep(5)
