@@ -188,7 +188,7 @@ def is_element_by_id(page, element_id):
 def create_browser_with_settings(p):
     """Создает браузер со всеми настройками для сервера"""
     return p.chromium.launch(
-            headless=True,  # Видимый браузер
+            headless=False,  # Видимый браузер
             args=[
                 # === КРИТИЧЕСКИ ВАЖНЫЕ ДЛЯ LINUX ===
                 '--no-sandbox',                    # Обязательно для контейнеров/серверов
@@ -286,8 +286,8 @@ def main():
     
     # Адреса и названия линз
     addresses = {
-        # 0: 'RU14102',  # Москва
-        0: 'RU39813',  # Ростов
+        0: 'RU14102',  # Ростов
+        # 0: 'RU39813',  # Москва
         # 2: 'RU51798',  # Казань
         # 3: 'RU51799',  # СПБ
         # 4: 'RU51797',  # Новосибирск
@@ -379,12 +379,12 @@ def main():
                     print("➡️ Переходим на страницу продукта...")
                     
                     # 1. УМЕНЬШАЕМ таймаут ДРАМАТИЧЕСКИ
-                    page.set_default_navigation_timeout(30000)  # 30 секунд вместо 180
+                    page.set_default_navigation_timeout(10000)  # 30 секунд вместо 180
                     
                     # 2. Только ОДНА попытка навигации
                     response = page.goto(
                         url_prod,
-                        timeout=15000,  # 15 секунд максимум!
+                        timeout=5000,  # 15 секунд максимум!
                         wait_until='domcontentloaded'  # Самый быстрый
                     )
                     
