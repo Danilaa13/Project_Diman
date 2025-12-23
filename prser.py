@@ -441,7 +441,7 @@ def main():
                         print(f"⚠ Не дождались загрузки ")
                         print("→ Но продолжаем выполнение...")
                         
-                        page.reload()
+                        
                         time.sleep(1)
                         continue
                         
@@ -1125,8 +1125,18 @@ def main():
         red_xl(filename)
         processed_filename = filename.replace('.xlsx', '_ostatki.xlsx')
         
-        chek_oasys(processed_filename)
-        chek_hydraluxe(processed_filename)
+        try:
+            chek_oasys(processed_filename)
+        except Exception as e:
+            print(f"⚠ Ошибка в chek_oasys: {e}")
+            # Можно записать в лог или продолжить
+        
+        try:
+            chek_hydraluxe(processed_filename)
+        except Exception as e:
+            print(f"⚠ Ошибка в chek_hydraluxe: {e}")
+            
+        # Продолжаем выполнение
         add_rastvor(processed_filename)
         
         city_name = filename.replace('.xlsx', '').capitalize()
@@ -1136,7 +1146,11 @@ def main():
             city_name = 'Новосибирск'
         elif city_name == 'Ekb':
             city_name = 'Екатеринбург'
-        
+        elif city_name == 'Rostov':
+            city_name = 'Ростов'
+        elif city_name == 'Moscow':
+            city_name = 'Москва' 
+
         send_email(processed_filename, city_name)
     
     end_time = time.time()
