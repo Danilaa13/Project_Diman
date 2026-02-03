@@ -14,30 +14,31 @@ from check_hydraluxe import chek_hydraluxe
 from get_rastvor import add_rastvor
 
 
-def autorization(page, url, username, password):
+def autorization(page, url, username, password, skip_goto=False):
     """Авторизация на сайте"""
-    page.goto(url)
-    time.sleep(2)
-    
+    if not skip_goto:
+        page.goto(url)
+        time.sleep(2)
+
     while True:
         try:
             # Ждем появления полей ввода
             page.wait_for_selector('input[name="userID"]', timeout=10000)
             page.wait_for_selector('input[name="password"]', timeout=10000)
-            
+
             # Вводим логин
             page.fill('input[name="userID"]', username)
             time.sleep(1)
-            
+
             # Проверяем, что логин введен
             login_value = page.input_value('input[name="userID"]')
             if login_value == username:
                 print("Ввел логин")
-                
+
                 # Вводим пароль
                 page.fill('input[name="password"]', password)
                 time.sleep(1)
-                
+
                 # Проверяем, что пароль введен
                 password_value = page.input_value('input[name="password"]')
                 if password_value == password:
@@ -50,17 +51,17 @@ def autorization(page, url, username, password):
                 page.reload()
                 time.sleep(2)
                 continue
-            
+
             # Нажимаем кнопку входа
             page.click('//a[contains(text(), "Войти") and @class="btn"]')
             print('Нажал на кнопку входа')
             break
-            
+
         except PlaywrightTimeoutError:
             print("Таймаут при авторизации, перезагружаю страницу")
             page.reload()
             time.sleep(2)
-    
+
     return page
 
 
@@ -233,28 +234,35 @@ def is_element_by_id(page, element_id):
         return False
     
 
-def create_browser_with_settings(p):
-    """Создает браузер со всеми настройками для сервера"""
-    return p.chromium.launch(
-            headless=True,  # Видимый браузер
+def create_persistent_context(p):
+    """Создает постоянный контекст браузера с сохранением cookies и данных"""
+    return p.chromium.launch_persistent_context(
+            user_data_dir='./browser_data',  # Директория для сохранения данных браузера
+            headless=True,
+            viewport={'width': 1920, 'height': 1080},
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            locale='ru-RU',
+            timezone_id='Europe/Moscow',
+            geolocation={'latitude': 55.7558, 'longitude': 37.6173},
+            permissions=['geolocation'],
             args=[
                 # === КРИТИЧЕСКИ ВАЖНЫЕ ДЛЯ LINUX ===
                 '--no-sandbox',                    # Обязательно для контейнеров/серверов
                 '--disable-dev-shm-usage',         # Решает 90% проблем с памятью на Linux
                 '--disable-gpu',                   # На сервере нет GPU
-                
+
                 # === Для стабильности и памяти ===
                 '--disable-software-rasterizer',
                 '--disable-accelerated-2d-canvas',
                 '--disable-accelerated-video-decode',
                 '--disable-accelerated-video-encode',
-                
+
                 # === Для обхода блокировок ===
                 '--disable-blink-features=AutomationControlled',
                 '--disable-features=IsolateOrigins,site-per-process',
                 '--disable-web-security',          # Осторожно: только для тестов!
                 '--disable-site-isolation-trials',
-                
+
                 # === Оптимизация производительности ===
                 '--single-process',                # Экономит память (но менее стабильно)
                 '--disable-setuid-sandbox',
@@ -267,17 +275,17 @@ def create_browser_with_settings(p):
                 '--no-first-run',
                 '--no-default-browser-check',
                 '--no-pings',
-                
+
                 # === Для стабильности сети ===
                 '--disable-domain-reliability',
                 '--disable-features=AudioServiceOutOfProcess',
                 '--disable-client-side-phishing-detection',
                 '--disable-component-update',
-                
+
                 # === Размер окна (важно даже для headless) ===
                 '--window-size=1920,1080',
                 '--start-maximized',
-                
+
                 # === Язык и локаль (чтобы сайт думал что вы в РФ) ===
                 '--lang=ru-RU',
                 '--accept-lang=ru-RU,ru;q=0.9',
@@ -370,22 +378,9 @@ def main():
     
     # Запускаем Playwright
     with sync_playwright() as p:
-        # Запускаем браузер в видимом режиме
-        browser = create_browser_with_settings(p)
+        # Создаем постоянный контекст с сохранением cookies
+        context = create_persistent_context(p)
 
-        
-        # Создаем контекст и страницу
-        # Создаем контекст, имитирующий локальную машину
-        context = browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            locale='ru-RU',
-            timezone_id='Europe/Moscow',
-            # Указываем геолокацию (координаты Москвы)
-            geolocation={'latitude': 55.7558, 'longitude': 37.6173},
-            permissions=['geolocation']
-        )
-        
         # Убираем следы автоматизации через JavaScript
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
@@ -400,12 +395,30 @@ def main():
                     originalQuery(parameters)
             );
         """)
-        page = context.new_page()
-        
-        # Авторизация
-        autorization(page, url, username, password)
-        time.sleep(2)
-        print("Авторизация прошла успешно")
+
+        # Получаем существующие страницы или создаем новую
+        pages = context.pages
+        if len(pages) > 0:
+            page = pages[0]
+            print("Используем существующую страницу (cookies сохранены)")
+        else:
+            page = context.new_page()
+            print("Создана новая страница")
+
+        # Проверяем, нужна ли авторизация
+        page.goto(url)
+        time.sleep(3)
+
+        # Проверяем, есть ли поле для логина (если есть - нужна авторизация)
+        try:
+            page.wait_for_selector('input[name="userID"]', timeout=5000)
+            print("Требуется авторизация, выполняем вход...")
+            autorization(page, url, username, password, skip_goto=True)
+            time.sleep(2)
+            print("Авторизация прошла успешно")
+        except PlaywrightTimeoutError:
+            print("✓ Уже авторизованы! Используем сохраненную сессию")
+            time.sleep(1)
         
         home_page = page.url
         
@@ -910,11 +923,20 @@ def main():
                                     print(f"Текущий URL: {current_url}")
                                     if current_url == start_url:
                                         print("Мы на странице авторизации.")
-                                        time.sleep(10)
+                                        time.sleep(3)
 
-                                        autorization(page, url, username, password)
-                                        time.sleep(2)
-                                        print("Авторизация прошла успешно")
+                                        # Проверяем, действительно ли нужна авторизация
+                                        try:
+                                            page.wait_for_selector('input[name="userID"]', timeout=5000)
+                                            print("Сессия истекла, требуется повторная авторизация...")
+                                            autorization(page, url, username, password, skip_goto=True)
+                                            time.sleep(2)
+                                            print("Авторизация прошла успешно")
+                                        except PlaywrightTimeoutError:
+                                            print("✓ Сессия еще активна, продолжаем работу")
+                                            # Переходим на главную, если уже авторизованы
+                                            page.goto(url)
+                                            time.sleep(2)
                                         continue
                                     
                                     # Обновляем индексы
@@ -1048,75 +1070,52 @@ def main():
                     print(f"Ошибка: {ex}")
                     print("Что-то пошло не так, начну этот круг заново")
                     count_except += 1
-                
-                # Закрываем браузер и перезапускаем
-                try:
-                    browser.close()
-                except:
-                    pass
-                
+
+                # НЕ закрываем браузер, чтобы сохранить cookies!
+                # Просто переходим на главную страницу и проверяем авторизацию
                 time.sleep(10)
-                
+
                 good_avtoriz = 0
                 while True:
                     try:
-                        # response = requests.get("http://91.77.161.132:13200/proxy/WY8Iktuw/", timeout=10)
-                        browser = create_browser_with_settings(p)
-                        # Создаем контекст и страницу
-                        # Создаем контекст, имитирующий локальную машину
-                        context = browser.new_context(
-                            viewport={'width': 1920, 'height': 1080},
-                            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            locale='ru-RU',
-                            timezone_id='Europe/Moscow',
-                            # Указываем геолокацию (координаты Москвы)
-                            geolocation={'latitude': 55.7558, 'longitude': 37.6173},
-                            permissions=['geolocation']
-                        )
-                        
-                        # Убираем следы автоматизации через JavaScript
-                        context.add_init_script("""
-                            Object.defineProperty(navigator, 'webdriver', {
-                                get: () => undefined
-                            });
-                            // Убираем другие признаки
-                            window.chrome = { runtime: {} };
-                            const originalQuery = window.navigator.permissions.query;
-                            window.navigator.permissions.query = (parameters) => (
-                                parameters.name === 'notifications' ?
-                                    Promise.resolve({ state: Notification.permission }) :
-                                    originalQuery(parameters)
-                            );
-                        """)
-                        page = context.new_page()
-                        
+                        # Переходим на страницу авторизации
+                        page.goto(url)
+                        time.sleep(3)
 
-                        autorization(page, url, username, password)
+                        # Проверяем, есть ли поле для логина (если есть - нужна авторизация)
+                        try:
+                            page.wait_for_selector('input[name="userID"]', timeout=5000)
+                            print("Требуется авторизация после ошибки, выполняем вход...")
+                            autorization(page, url, username, password, skip_goto=True)
+                            time.sleep(2)
+                            print("Авторизация прошла успешно")
+                        except PlaywrightTimeoutError:
+                            print("✓ Все еще авторизованы! Cookies сохранены")
+                            time.sleep(1)
+
                         good_avtoriz = 1
                     except Exception as ex:
-                        print(f"Ошибка перезапуска: {ex}")
-                        try:
-                            browser.close()
-                        except:
-                            pass
+                        print(f"Ошибка при восстановлении: {ex}")
                         time.sleep(20)
                         continue
-                    
+
                     if good_avtoriz:
                         break
-                
+
                 # Ждем загрузки главной страницы
                 while page.url != home_page:
                     time.sleep(1)
                 print("Мы на главной странице")
 
-                
+
                 empty_cart_safe(page, url_cart)
                 print("🗑 Очистили корзину ПОСЛЕ ПОВТОРНОГО ВХОДА")
                 continue
-        
+
+        # Не закрываем контекст, чтобы сохранить cookies!
+        # Persistent context автоматически сохранит данные при выходе
         time.sleep(5)
-        browser.close()
+        # context.close()  # Закомментировано для сохранения сессии
     
     # Обработка файлов
     # filenames = ['moscow.xlsx', 'rostov.xlsx', 'kazan.xlsx', 'spb.xlsx', 'novosib.xlsx', 'ekb.xlsx']

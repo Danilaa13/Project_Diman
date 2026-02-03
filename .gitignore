@@ -148,3 +148,7 @@ peremen.py
 # Дополнительно для безопасности:
 /peremen.py*
 /peremen*.py
+
+# Playwright browser data (cookies, cache, session storage)
+browser_data/
+/browser_data/
