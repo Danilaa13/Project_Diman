@@ -352,8 +352,8 @@ def main():
         6: '1-day Acuvue moist multifocal',
         7: 'Acuvue Oasys 1-day with hydraluxe for astigmatism',
         8: 'Acuvue Oasys max 1-day',
-        9: 'Acuvue Oasys multifocal',
-        10: 'Acuvue Oasys Max 1-Day Multifocal',
+        9: 'Acuvue Oasys Max 1-Day Multifocal',
+        10: 'Acuvue Oasys multifocal',
     }
     
     product_change = "Новый"
