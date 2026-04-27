@@ -352,8 +352,8 @@ def main():
         6: '1-day Acuvue moist multifocal',
         7: 'Acuvue Oasys 1-day with hydraluxe for astigmatism',
         8: 'Acuvue Oasys max 1-day',
-        9: 'Acuvue Oasys Max 1-Day Multifocal',
-        10: 'Acuvue Oasys multifocal',
+        9: 'Acuvue Oasys multifocal',
+        10: 'Acuvue Oasys Max 1-Day Multifocal',
     }
     
     product_change = "Новый"
@@ -485,7 +485,10 @@ def main():
                             # ВАЖНО: Если ожидаем навигацию - она должна охватывать ВСЕ способы выбора
                             with page.expect_navigation(timeout=5000, wait_until='domcontentloaded'):
                                 # Способ 1: select_option (основной)
-                                select_element.select_option(index=product_number + 1)
+                                html_index = product_number + 1
+                                if product_number >= num_miopii:
+                                    html_index += 1
+                                select_element.select_option(index=html_index)
                             
                             print(f"✓ Выбрал продукт через select_option с навигацией")
                             
