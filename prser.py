@@ -484,11 +484,9 @@ def main():
                             
                             # ВАЖНО: Если ожидаем навигацию - она должна охватывать ВСЕ способы выбора
                             with page.expect_navigation(timeout=5000, wait_until='domcontentloaded'):
-                                # Способ 1: select_option (основной)
-                                html_index = product_number + 1
-                                if product_number >= num_miopii:
-                                    html_index += 1
-                                select_element.select_option(index=html_index)
+                                # Способ 1: select_option по value (надёжнее индекса)
+                                product_value = product_elements[product_number].get_attribute('value')
+                                select_element.select_option(value=product_value)
                             
                             print(f"✓ Выбрал продукт через select_option с навигацией")
                             
