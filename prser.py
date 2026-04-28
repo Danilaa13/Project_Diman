@@ -455,7 +455,10 @@ def main():
                 # Пропускаем миопию (удаляем 8-й элемент если есть)
                 if len(product_elements) > num_miopii:
                     del product_elements[num_miopii]
-                
+
+                # Сохраняем value-атрибуты пока элементы ещё живые (до навигации)
+                product_values = [elem.get_attribute('value') for elem in product_elements]
+
                 print(f"Найдено продуктов: {len(product_elements)}")
                 
                 cylinder_presence = False
@@ -484,9 +487,8 @@ def main():
                             
                             # ВАЖНО: Если ожидаем навигацию - она должна охватывать ВСЕ способы выбора
                             with page.expect_navigation(timeout=5000, wait_until='domcontentloaded'):
-                                # Способ 1: select_option по value (надёжнее индекса)
-                                product_value = product_elements[product_number].get_attribute('value')
-                                select_element.select_option(value=product_value)
+                                # Способ 1: select_option по value (значения сохранены до навигации)
+                                select_element.select_option(value=product_values[product_number])
                             
                             print(f"✓ Выбрал продукт через select_option с навигацией")
                             
